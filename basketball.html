@@ -11,98 +11,127 @@
   #info { font-size:15px; color:#aaa; margin-bottom:8px; display:flex; gap:30px; }
   canvas { border:2px solid #ff9900; box-shadow:0 0 20px rgba(255,153,0,0.3); border-radius:4px; cursor:crosshair; }
   #msg { margin-top:10px; font-size:16px; color:#ff9900; min-height:22px; text-align:center; }
-  #startBtn { margin-top:8px; background:#ff9900; color:#000; border:none; padding:10px 28px; font-size:14px; font-family:'Courier New',monospace; font-weight:bold; border-radius:6px; cursor:pointer; letter-spacing:2px; }
+  #startBtn { margin-top:8px; background:#ff9900; color:#000; border:none; padding:10px 28px; font-size:14px; font-family:'Courier New',monospace; font-weight:bold; border-radius:6px; cursor:pointer; }
 </style>
 </head>
 <body>
 <h1>🏀 BASKETBALL</h1>
-<div id="info"><span>PUNTOS: <b id="pts">0</b></span><span>TIROS: <b id="shots">10</b></span></div>
+<div id="info"><span>GOLES: <b id="pts">0</b></span><span>TIROS: <b id="shots">10</b></span></div>
 <canvas id="c" width="400" height="450"></canvas>
 <div id="msg">Haz clic y arrastra para lanzar</div>
 <button id="startBtn">INICIAR</button>
 <script>
-const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
-const W=400,H=450;
-const HOOP_X=W/2, HOOP_Y=100, HOOP_R=30;
-let ball,score,shotsLeft,running,animId,dragging,dragStart,dragEnd,launched,hoopAnim;
+const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+const W = 400, H = 450;
+const HX = W/2, HY = 100, HR = 30;
+let ball, score, shotsLeft, running, animId, dragging, dragStart, dragEnd, hoopFlash;
 
-function init(){
-  score=0; shotsLeft=10; running=true; hoopAnim=0;
-  document.getElementById('pts').textContent=0;
-  document.getElementById('shots').textContent=10;
-  document.getElementById('msg').textContent='';
+function init() {
+  score = 0; shotsLeft = 10; running = true; hoopFlash = 0;
+  document.getElementById('pts').textContent = 0;
+  document.getElementById('shots').textContent = 10;
+  document.getElementById('msg').textContent = '';
   resetBall();
   cancelAnimationFrame(animId);
   animate();
 }
 
-function resetBall(){
-  ball={x:W/2+(Math.random()-0.5)*80,y:H-60,r:18,vx:0,vy:0,active:false};
-  dragging=false; launched=false;
+function resetBall() {
+  ball = { x: W/2 + (Math.random()-0.5)*80, y: H-60, r: 18, vx: 0, vy: 0, active: false };
+  dragging = false; dragStart = null; dragEnd = null;
 }
 
-function animate(){ if(!running)return; update(); draw(); animId=requestAnimationFrame(animate); }
+function animate() { if (!running) return; update(); draw(); animId = requestAnimationFrame(animate); }
 
-function update(){
-  if(hoopAnim>0) hoopAnim--;
-  if(!ball.active) return;
-  ball.vy+=0.4; ball.x+=ball.vx; ball.y+=ball.vy;
+function update() {
+  if (hoopFlash > 0) hoopFlash--;
+  if (!ball.active) return;
+  ball.vy += 0.4; ball.x += ball.vx; ball.y += ball.vy;
+  if (ball.x < ball.r || ball.x > W-ball.r) ball.vx *= -0.6;
   // Hoop detection
-  const dx=ball.x-HOOP_X, dy=ball.y-HOOP_Y;
-  if(Math.abs(dx)<HOOP_R-6&&Math.abs(dy)<12&&ball.vy>0){
-    score+=2; document.getElementById('pts').textContent=score; hoopAnim=20;
+  if (Math.abs(ball.x - HX) < HR-6 && Math.abs(ball.y - HY) < 14 && ball.vy > 0) {
+    score++; document.getElementById('pts').textContent = score; hoopFlash = 20;
+    nextShot(); return;
   }
-  if(ball.x<ball.r||ball.x>W-ball.r) ball.vx*=-0.6;
-  if(ball.y>H+50||ball.y<-100) nextShot();
+  if (ball.y > H+50) nextShot();
 }
 
-function nextShot(){
-  shotsLeft--; document.getElementById('shots').textContent=shotsLeft;
-  if(shotsLeft<=0){ running=false; document.getElementById('msg').textContent=`🏆 FIN — Puntos: ${score}`; return; }
+function nextShot() {
+  shotsLeft--;
+  document.getElementById('shots').textContent = shotsLeft;
+  if (shotsLeft <= 0) { running = false; document.getElementById('msg').textContent = '🏆 FIN — Goles: ' + score + '/10'; return; }
   resetBall();
 }
 
-function draw(){
-  ctx.fillStyle='#0a0a1a'; ctx.fillRect(0,0,W,H);
+function draw() {
+  ctx.fillStyle = '#0a0a1a'; ctx.fillRect(0,0,W,H);
   // Backboard
-  ctx.fillStyle='rgba(255,255,255,0.1)'; ctx.fillRect(W/2-50,60,100,60);
-  ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=2;
-  ctx.strokeRect(W/2-50,60,100,60);
+  ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(W/2-50, 60, 100, 60);
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 2; ctx.strokeRect(W/2-50, 60, 100, 60);
   // Hoop
-  const hc=hoopAnim>0?'#39ff14':'#ff9900';
-  ctx.strokeStyle=hc; ctx.lineWidth=4; ctx.shadowColor=hc; ctx.shadowBlur=hoopAnim>0?20:8;
-  ctx.beginPath(); ctx.arc(HOOP_X,HOOP_Y,HOOP_R,0,Math.PI*2); ctx.stroke();
-  // Net
-  ctx.shadowBlur=0; ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=1;
-  for(let i=0;i<6;i++){
-    const a=(i/6)*Math.PI*2;
-    ctx.beginPath(); ctx.moveTo(HOOP_X+Math.cos(a)*HOOP_R,HOOP_Y+Math.sin(a)*HOOP_R);
-    ctx.lineTo(HOOP_X+Math.cos(a)*HOOP_R*0.5,HOOP_Y+40); ctx.stroke();
+  const hc = hoopFlash > 0 ? '#39ff14' : '#ff9900';
+  ctx.strokeStyle = hc; ctx.lineWidth = 4; ctx.shadowColor = hc; ctx.shadowBlur = hoopFlash > 0 ? 20 : 8;
+  ctx.beginPath(); ctx.arc(HX, HY, HR, 0, Math.PI*2); ctx.stroke();
+  ctx.shadowBlur = 0;
+  // Net lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1;
+  for (let i=0; i<6; i++) {
+    const a = (i/6)*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(HX+Math.cos(a)*HR, HY+Math.sin(a)*HR);
+    ctx.lineTo(HX+Math.cos(a)*HR*0.4, HY+42); ctx.stroke();
   }
   // Drag line
-  if(dragging&&dragStart&&dragEnd){
-    ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=2; ctx.setLineDash([5,5]);
-    ctx.beginPath(); ctx.moveTo(ball.x,ball.y); ctx.lineTo(ball.x-(dragEnd.x-dragStart.x),ball.y-(dragEnd.y-dragStart.y));
-    ctx.stroke(); ctx.setLineDash([]);
+  if (dragging && dragStart && dragEnd) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 2; ctx.setLineDash([5,5]);
+    ctx.beginPath(); ctx.moveTo(ball.x, ball.y);
+    ctx.lineTo(ball.x-(dragEnd.x-dragStart.x), ball.y-(dragEnd.y-dragStart.y)); ctx.stroke();
+    ctx.setLineDash([]);
   }
   // Ball
-  const grad=ctx.createRadialGradient(ball.x-5,ball.y-5,2,ball.x,ball.y,ball.r);
-  grad.addColorStop(0,'#ffaa00'); grad.addColorStop(1,'#cc6600');
-  ctx.fillStyle=grad; ctx.shadowColor='#ff9900'; ctx.shadowBlur=8;
-  ctx.beginPath(); ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2); ctx.fill();
-  // Ball lines
-  ctx.strokeStyle='rgba(0,0,0,0.4)'; ctx.lineWidth=1.5; ctx.shadowBlur=0;
-  ctx.beginPath(); ctx.moveTo(ball.x-ball.r,ball.y); ctx.lineTo(ball.x+ball.r,ball.y); ctx.stroke();
-  ctx.beginPath(); ctx.arc(ball.x,ball.y,ball.r,0,Math.PI); ctx.stroke();
+  const g = ctx.createRadialGradient(ball.x-5, ball.y-5, 2, ball.x, ball.y, ball.r);
+  g.addColorStop(0, '#ffaa00'); g.addColorStop(1, '#cc6600');
+  ctx.fillStyle = g; ctx.shadowColor = '#ff9900'; ctx.shadowBlur = 8;
+  ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1.5; ctx.shadowBlur = 0;
+  ctx.beginPath(); ctx.moveTo(ball.x-ball.r, ball.y); ctx.lineTo(ball.x+ball.r, ball.y); ctx.stroke();
+  ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI); ctx.stroke();
 }
 
-canvas.addEventListener('mousedown',e=>{ if(!running||ball.active) return; const r=canvas.getBoundingClientRect(); dragStart={x:e.clientX-r.left,y:e.clientY-r.top}; dragging=true; });
-canvas.addEventListener('mousemove',e=>{ if(!dragging) return; const r=canvas.getBoundingClientRect(); dragEnd={x:e.clientX-r.left,y:e.clientY-r.top}; draw(); });
-canvas.addEventListener('mouseup',e=>{ if(!dragging||!dragEnd) return; const dx=dragEnd.x-dragStart.x, dy=dragEnd.y-dragStart.y; ball.vx=-dx*0.15; ball.vy=-dy*0.15; ball.active=true; dragging=false; });
-canvas.addEventListener('touchstart',e=>{ if(!running||ball.active) return; const r=canvas.getBoundingClientRect(); dragStart={x:e.touches[0].clientX-r.left,y:e.touches[0].clientY-r.top}; dragging=true; e.preventDefault(); },{passive:false});
-canvas.addEventListener('touchmove',e=>{ if(!dragging) return; const r=canvas.getBoundingClientRect(); dragEnd={x:e.touches[0].clientX-r.left,y:e.touches[0].clientY-r.top}; draw(); e.preventDefault(); },{passive:false});
-canvas.addEventListener('touchend',e=>{ if(!dragging||!dragEnd) return; const dx=dragEnd.x-dragStart.x, dy=dragEnd.y-dragStart.y; ball.vx=-dx*0.15; ball.vy=-dy*0.15; ball.active=true; dragging=false; e.preventDefault(); },{passive:false});
-document.getElementById('startBtn').addEventListener('click',init);
+canvas.addEventListener('mousedown', e => {
+  if (!running || ball.active) return;
+  const r = canvas.getBoundingClientRect();
+  dragStart = { x: e.clientX-r.left, y: e.clientY-r.top }; dragging = true;
+});
+canvas.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  const r = canvas.getBoundingClientRect();
+  dragEnd = { x: e.clientX-r.left, y: e.clientY-r.top };
+});
+canvas.addEventListener('mouseup', e => {
+  if (!dragging || !dragEnd) return;
+  const dx = dragEnd.x-dragStart.x, dy = dragEnd.y-dragStart.y;
+  ball.vx = -dx*0.15; ball.vy = -dy*0.15; ball.active = true; dragging = false;
+});
+canvas.addEventListener('touchstart', e => {
+  if (!running || ball.active) return;
+  const r = canvas.getBoundingClientRect();
+  dragStart = { x: e.touches[0].clientX-r.left, y: e.touches[0].clientY-r.top }; dragging = true;
+  e.preventDefault();
+}, {passive:false});
+canvas.addEventListener('touchmove', e => {
+  if (!dragging) return;
+  const r = canvas.getBoundingClientRect();
+  dragEnd = { x: e.touches[0].clientX-r.left, y: e.touches[0].clientY-r.top };
+  e.preventDefault();
+}, {passive:false});
+canvas.addEventListener('touchend', e => {
+  if (!dragging || !dragEnd) return;
+  const dx = dragEnd.x-dragStart.x, dy = dragEnd.y-dragStart.y;
+  ball.vx = -dx*0.15; ball.vy = -dy*0.15; ball.active = true; dragging = false;
+  e.preventDefault();
+}, {passive:false});
+
+document.getElementById('startBtn').addEventListener('click', init);
 draw();
 </script>
 </body>
