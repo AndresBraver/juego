@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ULTRA GAMES 🎮</title>
+<title>ULTRA GAMES </title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -227,8 +226,8 @@ function filterCat(cat, btn) {
 }
 
 function play(url, name) {
-  // Open in new tab for wordwall and pacman (iframe blocked)
-  if (url.includes('wordwall') || url.includes('pacman') || url.includes('amongus')) {
+  // Open wordwall in new tab only (Google blocks iframes)
+  if (url.includes('wordwall')) {
     window.open(url, '_blank');
     return;
   }
