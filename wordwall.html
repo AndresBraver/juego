@@ -24,30 +24,31 @@
 <body>
 <div class="icon">📚</div>
 <h1>BUSCAR TEMA</h1>
-<p>Escribe un tema y te llevamos a Google</p>
+<p>Escribe un tema y abre Google en nueva pestaña</p>
 <div class="search-box">
   <input type="text" id="query" placeholder="ej. sustantivos, verbos, fracciones..." autofocus>
   <button onclick="buscar()">BUSCAR →</button>
 </div>
 <div class="suggestions">
-  <div class="chip" onclick="buscarTema('sustantivos')">sustantivos</div>
-  <div class="chip" onclick="buscarTema('adjetivos')">adjetivos</div>
-  <div class="chip" onclick="buscarTema('verbos')">verbos</div>
-  <div class="chip" onclick="buscarTema('fracciones')">fracciones</div>
-  <div class="chip" onclick="buscarTema('multiplicación')">multiplicación</div>
-  <div class="chip" onclick="buscarTema('animales')">animales</div>
-  <div class="chip" onclick="buscarTema('colores')">colores</div>
-  <div class="chip" onclick="buscarTema('sinónimos')">sinónimos</div>
-  <div class="chip" onclick="buscarTema('antónimos')">antónimos</div>
+  <div class="chip" onclick="buscarTema('que son los sustantivos')">sustantivos</div>
+  <div class="chip" onclick="buscarTema('que son los adjetivos')">adjetivos</div>
+  <div class="chip" onclick="buscarTema('que son los verbos')">verbos</div>
+  <div class="chip" onclick="buscarTema('que son las fracciones')">fracciones</div>
+  <div class="chip" onclick="buscarTema('tabla de multiplicar')">multiplicación</div>
+  <div class="chip" onclick="buscarTema('animales vertebrados e invertebrados')">animales</div>
+  <div class="chip" onclick="buscarTema('que son los sinónimos')">sinónimos</div>
+  <div class="chip" onclick="buscarTema('que son los antónimos')">antónimos</div>
+  <div class="chip" onclick="buscarTema('que es la fotosíntesis')">fotosíntesis</div>
+  <div class="chip" onclick="buscarTema('sistema solar planetas')">sistema solar</div>
 </div>
 <script>
 function buscar() {
   const q = document.getElementById('query').value.trim();
   if (!q) return;
-  window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank');
+  window.location.href = 'https://www.google.com/search?q=' + encodeURIComponent(q);
 }
 function buscarTema(tema) {
-  window.open('https://www.google.com/search?q=' + encodeURIComponent(tema), '_blank');
+  window.location.href = 'https://www.google.com/search?q=' + encodeURIComponent(tema);
 }
 document.getElementById('query').addEventListener('keydown', e => {
   if (e.key === 'Enter') buscar();
