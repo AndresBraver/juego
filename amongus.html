@@ -59,7 +59,7 @@ canvas { border:2px solid #ff0055; box-shadow:0 0 20px rgba(255,0,85,0.3); borde
 <h1>🔴 AMONG US</h1>
 <div id="roleTag"></div>
 <div id="info">
-  <span>TAREAS: <b id="itask">0</b>/10</span>
+  <span>TAREAS: <b id="itask">0</b>/20</span>
   <span>VIVOS: <b id="ialive">8</b></span>
   <span id="icd"></span>
 </div>
@@ -133,15 +133,15 @@ function startGame(){
   const impIdx=imp?[]:[1+Math.floor(Math.random()*6)];
   G={
     imp, px:MW/2, py:MH/2,
-    bots:Array.from({length:7},(_,i)=>({
+    bots:Array.from({length:7},(_,i)=>({taskTimer:200+Math.random()*300,
       i:i+1, x:100+Math.random()*(MW-200), y:100+Math.random()*(MH-200),
       tx:Math.random()*MW, ty:Math.random()*MH,
       timer:Math.random()*80, dead:false, body:false,
       isImp:impIdx.includes(i+1),
       kt:imp?99999:180+Math.random()*250
     })),
-    dots:Array.from({length:10},()=>({x:80+Math.random()*(MW-160),y:80+Math.random()*(MH-160),done:false})),
-    kcd:0, emerUsed:false, meet:false, running:true,
+    dots:Array.from({length:20},()=>({x:80+Math.random()*(MW-160),y:80+Math.random()*(MH-160),done:false})),
+    kcd:0, emerUsed:false, meet:false, running:true, playerDoingTask:false, playerTaskTarget:null, playerTaskProgress:0, _witnessedKiller:null,
     votes:{}, myVoted:false, meetSec:20
   };
   document.getElementById('roleTag').textContent=imp?'😈 ERES EL IMPOSTOR':'👨‍🚀 ERES TRIPULANTE';
@@ -176,46 +176,151 @@ function update(){
 
   if(G.imp&&G.kcd>0){G.kcd--;document.getElementById('icd').textContent=G.kcd>0?'CD:'+Math.ceil(G.kcd/60)+'s':'KILL:LISTO';}
 
-  const nt=!G.imp&&G.dots.find(d=>!d.done&&Math.hypot(G.px-d.x,G.py-d.y)<32);
+  // Player task progress
+  if(G.playerDoingTask){
+    G.playerTaskProgress++;
+    if(G.playerTaskProgress>=180){
+      G.playerTaskTarget.done=true;
+      G.playerDoingTask=false;
+      G.playerTaskTarget=null;
+      const n=G.dots.filter(d=>d.done).length;
+      document.getElementById('itask').textContent=n;
+      setMsg('✅ Tarea '+n+'/20');
+      setTimeout(()=>setMsg(''),1000);
+      if(n>=20)endGame('crew_task');
+    }
+  }
+  const nt=!G.imp&&!G.playerDoingTask&&G.dots.find(d=>!d.done&&Math.hypot(G.px-d.x,G.py-d.y)<32);
   document.getElementById('useBtn').style.display=nt?'inline-block':'none';
 
   if(K[' ']){const nb=G.bots.find(b=>b.dead&&b.body&&Math.hypot(G.px-b.x,G.py-b.y)<40);if(nb){K[' ']=false;callMeet('body',nb);return;}}
 
   G.bots.forEach(b=>{
     if(b.dead)return;
-    b.timer--;
-    if(b.timer<=0){b.tx=80+Math.random()*(MW-160);b.ty=80+Math.random()*(MH-160);b.timer=60+Math.random()*120;}
-    const dx=b.tx-b.x,dy=b.ty-b.y,d=Math.hypot(dx,dy);
-    if(d>5){b.x+=dx/d*1.4;b.y+=dy/d*1.4;}
-    b.x=Math.max(10,Math.min(MW-10,b.x));b.y=Math.max(10,Math.min(MH-10,b.y));
-    if(b.isImp&&!G.imp){
+
+    if(!b.isImp){
+      // Crewmate: go to nearest undone task
+      const undone=G.dots.filter(d=>!d.done);
+      if(undone.length>0){
+        // Pick closest task
+        if(!b.targetDot||b.targetDot.done){
+          // 65% chance to go to task, 35% chance to wander
+          if(Math.random()<0.65){
+            b.targetDot=undone[Math.floor(Math.random()*undone.length)];
+          } else {
+            b.targetDot=null;
+            b.tx=80+Math.random()*(MW-160);b.ty=80+Math.random()*(MH-160);
+          }
+        }
+        const td=b.targetDot;
+        const dist=Math.hypot(b.x-td.x,b.y-td.y);
+        if(dist>20){
+          // Walk to task
+          b.x+=(td.x-b.x)/dist*1.2;
+          b.y+=(td.y-b.y)/dist*1.2;
+          b.doingTask=false;
+        } else {
+          // Doing task - wait 3 seconds (180 frames)
+          if(!b.doingTask){b.doingTask=true;b.taskProgress=0;}
+          b.taskProgress++;
+          if(b.taskProgress>=180){
+            td.done=true;b.doingTask=false;b.targetDot=null;
+            const n=G.dots.filter(d=>d.done).length;
+            document.getElementById('itask').textContent=n;
+            setMsg('🔧 '+NAM[b.i]+' completó una tarea');
+            setTimeout(()=>setMsg(''),1500);
+            if(n>=20)endGame('crew_task');
+          }
+        }
+      }
+    } else {
+      // Impostor: roam and kill
+      // Impostor chases nearest player/bot 50% of time
+      b.timer--;
+      if(b.timer<=0){
+        b.timer=40+Math.random()*60;
+        if(Math.random()<0.5){
+          // Chase player
+          b.tx=G.px+( Math.random()-0.5)*100;
+          b.ty=G.py+(Math.random()-0.5)*100;
+        } else {
+          // Chase random crewmate
+          const crew=G.bots.filter(t=>!t.dead&&!t.isImp);
+          if(crew.length){const t=crew[Math.floor(Math.random()*crew.length)];b.tx=t.x;b.ty=t.y;}
+          else{b.tx=80+Math.random()*(MW-160);b.ty=80+Math.random()*(MH-160);}
+        }
+      }
+      const dx=b.tx-b.x,dy=b.ty-b.y,d=Math.hypot(dx,dy);
+      if(d>5){b.x+=dx/d*2.2;b.y+=dy/d*2.2;}
       b.kt--;
       if(b.kt<=0){
-        b.kt=200+Math.random()*200;
-        const v=G.bots.find(t=>!t.dead&&!t.isImp&&Math.hypot(b.x-t.x,b.y-t.y)<50);
-        if(v){v.dead=true;v.body=true;checkWin();}
-        if(Math.hypot(b.x-G.px,b.y-G.py)<50){G.running=false;endGame('imp');}
+        b.kt=80+Math.random()*80;
+        // Kill nearby crewmate bot
+        const v=G.bots.find(t=>!t.dead&&!t.isImp&&Math.hypot(b.x-t.x,b.y-t.y)<65);
+        if(v){
+          // Check if any witness saw the kill (within 120px)
+          const witness=G.bots.find(t=>!t.dead&&t!==b&&t!==v&&Math.hypot(t.x-b.x,t.y-b.y)<120);
+          const playerWitness=!G.imp&&Math.hypot(G.px-b.x,G.py-b.y)<120;
+          v.dead=true;v.body=true;
+          setMsg('💀 '+NAM[v.i]+' fue eliminado');
+          checkWin();
+          if(witness||playerWitness){
+            setTimeout(()=>{
+              if(G&&G.running&&!G.meet){
+                setMsg('👁️ ¡'+NAM[witness?witness.i:0]+' vio el crimen! Llamando reunión...');
+                setTimeout(()=>{
+                  if(G&&G.running&&!G.meet){
+                    // Force vote for the impostor
+                    G._witnessedKiller=b.i;
+                    callMeet('witness',v);
+                  }
+                },1500);
+              }
+            },500);
+          }
+        }
+        // Kill player if close
+        if(!G.imp&&Math.hypot(b.x-G.px,b.y-G.py)<65){
+          G.running=false;
+          setMsg('💀 ¡'+NAM[b.i]+' te mató! IMPOSTORES GANAN');
+          setTimeout(()=>endGame('imp'),1500);
+        }
       }
     }
+    b.x=Math.max(10,Math.min(MW-10,b.x));
+    b.y=Math.max(10,Math.min(MH-10,b.y));
   });
 }
 
 function useTask(){
-  if(!G)return;
+  if(!G||G.playerDoingTask)return;
   const t=G.dots.find(d=>!d.done&&Math.hypot(G.px-d.x,G.py-d.y)<32);
   if(!t)return;
-  t.done=true;
-  const n=G.dots.filter(d=>d.done).length;
-  document.getElementById('itask').textContent=n;
-  setMsg('✅ Tarea '+n+'/10');
-  setTimeout(()=>setMsg(''),1000);
-  if(n>=10)endGame('crew_task');
+  G.playerDoingTask=true;
+  G.playerTaskTarget=t;
+  G.playerTaskProgress=0;
+  setMsg('⚡ Completando tarea...');
 }
 
 function tryKill(){
   if(!G||!G.imp||G.kcd>0)return;
   const t=G.bots.find(b=>!b.dead&&!b.isImp&&Math.hypot(G.px-b.x,G.py-b.y)<70);
-  if(t){t.dead=true;t.body=true;G.kcd=180;setMsg('☠️ Mataste a '+NAM[t.i]);checkWin();}
+  if(t){
+    // Check if witness nearby
+    const witness=G.bots.find(b=>!b.dead&&b!==t&&Math.hypot(b.x-G.px,b.y-G.py)<120);
+    t.dead=true;t.body=true;G.kcd=180;
+    setMsg('☠️ Mataste a '+NAM[t.i]);
+    checkWin();
+    if(witness){
+      setTimeout(()=>{
+        if(G&&G.running&&!G.meet){
+          setMsg('👁️ ¡'+NAM[witness.i]+' te vio! Llamando emergencia...');
+          G._witnessedKiller='ME'; // bots will vote for player
+          setTimeout(()=>{if(G&&G.running&&!G.meet)callMeet('witness',t);},1500);
+        }
+      },500);
+    }
+  }
   else{setMsg('⚠️ Acércate más');setTimeout(()=>setMsg(''),1200);}
 }
 
@@ -239,7 +344,9 @@ function callMeet(reason,body){
   }
   G.meet=true;G.votes={};G.myVoted=false;G.meetSec=20;selectedVote=null;
   document.getElementById('meetReason').textContent=
-    reason==='emer'?'¡Reunión de emergencia convocada!':'💀 Cuerpo de '+(body?NAM[body.i]:'alguien')+' encontrado';
+    reason==='emer'?'¡Reunión de emergencia convocada!':
+    reason==='witness'?'👁️ ¡Alguien fue visto matando!':
+    '💀 Cuerpo de '+(body?NAM[body.i]:'alguien')+' encontrado';
   document.getElementById('meetResult').textContent='';
   document.getElementById('voteStatus').textContent='';
   buildPlayersGrid();
@@ -250,13 +357,18 @@ function callMeet(reason,body){
   all.forEach(b=>{
     setTimeout(()=>{
       if(!G||!G.meet)return;
-      // Bots vote for player or random
-      const targets=[...G.bots.filter(t=>!t.dead&&t!==b),{isME:true}];
-      const pick=targets[Math.floor(Math.random()*targets.length)];
-      const key=pick.isME?'ME':pick.i;
+      let key;
+      if(G._witnessedKiller){
+        // Witness event - all bots vote for the killer
+        key=G._witnessedKiller;
+      } else {
+        const targets=[...G.bots.filter(t=>!t.dead&&t!==b),{isME:true}];
+        const pick=targets[Math.floor(Math.random()*targets.length)];
+        key=pick.isME?'ME':pick.i;
+      }
       G.votes[key]=(G.votes[key]||0)+1;
       updateVoteDisplay();
-    },1500+Math.random()*3000);
+    },800+Math.random()*2000);
   });
 
   // Meeting timer
@@ -341,7 +453,7 @@ function resolveVote(){
   }
 }
 
-function endMeet(){if(!G)return;G.meet=false;clearInterval(meetTimerInterval);document.getElementById('meeting').classList.remove('open');}
+function endMeet(){if(!G)return;G.meet=false;G._witnessedKiller=null;clearInterval(meetTimerInterval);document.getElementById('meeting').classList.remove('open');}
 
 function checkWin(){
   if(!G)return;
@@ -409,13 +521,28 @@ function draw(){
   // Bots
   G.bots.forEach(b=>{
     drawChar(b.x,b.y,COL[b.i],20,b.dead);
-    if(!b.dead){ctx.fillStyle='#bbb';ctx.font='9px Courier New';ctx.textAlign='center';ctx.fillText(NAM[b.i],b.x,b.y+30);ctx.textAlign='left';}
+    if(!b.dead){
+      ctx.fillStyle='#bbb';ctx.font='9px Courier New';ctx.textAlign='center';
+      ctx.fillText(NAM[b.i],b.x,b.y+30);ctx.textAlign='left';
+      // Task progress bar
+      if(b.doingTask&&b.taskProgress>0){
+        ctx.fillStyle='#333';ctx.fillRect(b.x-20,b.y-30,40,5);
+        ctx.fillStyle='#39ff14';ctx.fillRect(b.x-20,b.y-30,40*(b.taskProgress/180),5);
+      }
+    }
   });
   ctx.restore();
   // Player always at center
   drawChar(VW/2,VH/2,COL[0],24,false);
   ctx.fillStyle='#ffe600';ctx.font='bold 10px Courier New';ctx.textAlign='center';
   ctx.fillText('TÚ',VW/2,VH/2+34);ctx.textAlign='left';
+  // Player task progress bar
+  if(G&&G.playerDoingTask){
+    ctx.fillStyle='#333';ctx.fillRect(VW/2-25,VH/2-38,50,7);
+    ctx.fillStyle='#39ff14';ctx.shadowColor='#39ff14';ctx.shadowBlur=6;
+    ctx.fillRect(VW/2-25,VH/2-38,50*(G.playerTaskProgress/180),7);
+    ctx.shadowBlur=0;
+  }
   // Minimap
   const mx=VW-86,my=VH-54,mw=80,mh=48,sx=mw/MW,sy=mh/MH;
   ctx.fillStyle='rgba(0,0,0,.8)';ctx.fillRect(mx,my,mw,mh);ctx.strokeStyle='#555';ctx.strokeRect(mx,my,mw,mh);
@@ -426,7 +553,7 @@ function draw(){
   const done=G.dots.filter(d=>d.done).length;
   ctx.fillStyle='#1a1a3e';ctx.fillRect(10,VH-10,VW-20,6);
   ctx.fillStyle='#39ff14';ctx.shadowColor='#39ff14';ctx.shadowBlur=4;
-  ctx.fillRect(10,VH-10,(VW-20)*(done/10),6);ctx.shadowBlur=0;
+  ctx.fillRect(10,VH-10,(VW-20)*(done/20),6);ctx.shadowBlur=0;
 }
 
 raf=requestAnimationFrame(loop);
