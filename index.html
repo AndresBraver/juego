@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -178,6 +177,8 @@ const FIXED = [
   {id:17, name:'Parachute',      url:'https://ultragames.vercel.app/parachute.html',     cat:'arcade',   tag:'new', emoji:'🪂'},
   {id:18, name:'Bowling',        url:'https://ultragames.vercel.app/bowling.html',       cat:'deportes', tag:'',    emoji:'🎳'},
   {id:19, name:'Sword Fighter',  url:'https://ultragames.vercel.app/swordfighter.html',  cat:'accion',   tag:'new', emoji:'⚔️'},
+  {id:20, name:'Pac-Man',         url:'https://ultragames.vercel.app/pacman.html',          cat:'arcade',   tag:'hot', emoji:'🟡'},
+  {id:21, name:'Buscar Tema',     url:'https://ultragames.vercel.app/wordwall.html',         cat:'aventura', tag:'new', emoji:'📚'},
 ];
 
 let extra = JSON.parse(localStorage.getItem('ug_extra')||'[]');
@@ -224,6 +225,11 @@ function filterCat(cat, btn) {
 }
 
 function play(url, name) {
+  // Open in new tab for these games
+  if (url.includes('wordwall') || url.includes('pacman')) {
+    window.open(url, '_blank');
+    return;
+  }
   document.getElementById('playerTitle').textContent = name;
   document.getElementById('playerModal').classList.add('open');
   document.getElementById('gameFrame').src = url;
