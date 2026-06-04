@@ -311,7 +311,7 @@ let admin = false;
 let combo = [];
 let isLoginMode = true;
 
-function allGames() { return [...FIXED,...(currentUD&&currentUD.extra_games?currentUD.extra_games:[])]; }
+function allGames() { const extra=(currentUD&&Array.isArray(currentUD.extra_games))?currentUD.extra_games:[]; return [...FIXED,...extra]; }
 
 async function saveUD() {
   if(!currentUD||!currentUser) return;
@@ -350,7 +350,7 @@ async function doLogin() {
       const data=await sbFetch('ug_users?username=eq.'+encodeURIComponent(user)+'&select=*');
       if(!data||!data.length){err.textContent='Usuario no encontrado';btn.textContent='ENTRAR';return;}
       if(data[0].password!==btoa(pass)){err.textContent='Contraseña incorrecta';btn.textContent='ENTRAR';return;}
-      currentUser=user; currentUD=data[0]; closeLogin(); onLogin();
+      currentUser=user; currentUD=data[0]; if(!currentUD.extra_games)currentUD.extra_games=[]; closeLogin(); onLogin();
     } else {
       if(pass.length<4){err.textContent='Contraseña mínimo 4 caracteres';btn.textContent='REGISTRAR';return;}
       const check=await sbFetch('ug_users?username=eq.'+encodeURIComponent(user)+'&select=id');
@@ -360,7 +360,7 @@ async function doLogin() {
         body:JSON.stringify({username:user,password:btoa(pass),points:0,owned:[],equipped:{color:'',bg:''},hints:0,extra_lives:0,extra_games:[]})
       });
       if(!res){err.textContent='Error al crear cuenta';btn.textContent='REGISTRAR';return;}
-      currentUser=user; currentUD=Array.isArray(res)?res[0]:res; closeLogin(); onLogin();
+      const ud=Array.isArray(res)?res[0]:res; if(!ud.extra_games)ud.extra_games=[]; currentUser=user; currentUD=ud; closeLogin(); onLogin();
     }
   } catch(e) { err.textContent='Error de conexión'; btn.textContent=isLoginMode?'ENTRAR':'REGISTRAR'; }
 }
