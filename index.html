@@ -281,24 +281,49 @@ const SHOP = {
 };
 
 // ════════════════════════════════════════
+// SUPABASE
+// ════════════════════════════════════════
+const SB_URL = 'https://rweslfsfimdodcudgijw.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3ZXNsZnNmaW1kb2RjdWRnaWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NzI0MjQsImV4cCI6MjA5NjE0ODQyNH0.0oWHME0-GqLnHtZv5wFLHcLfuoesK4gB7Re-dc5hCV4';
+async function sbFetch(path, opts) {
+  opts = opts || {};
+  const res = await fetch(SB_URL+'/rest/v1/'+path, {
+    method: opts.method||'GET',
+    headers: {
+      'apikey': SB_KEY, 'Authorization': 'Bearer '+SB_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': opts.prefer||''
+    },
+    body: opts.body||undefined
+  });
+  if(res.status===204||res.status===200&&!res.headers.get('content-length')&&opts.method==='PATCH') return null;
+  try { return await res.json(); } catch(e) { return null; }
+}
+
+// ════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════
 let currentUser = null;
+let currentUD = null;
 let filter = 'all';
 let selEmoji = '🎮';
 let admin = false;
 let combo = [];
-let isLoginMode = true; // true=login, false=register
+let isLoginMode = true;
 
-function getUsers() { return JSON.parse(localStorage.getItem('ug_users')||'{}'); }
-function saveUsers(u) { localStorage.setItem('ug_users',JSON.stringify(u)); }
-function getUD(user) {
-  const users=getUsers();
-  if(!users[user]) users[user]={points:0,owned:[],equipped:{color:'',bg:''},hints:0,extraLives:0,extra:[]};
-  return users[user];
+function allGames() { return [...FIXED,...(currentUD&&currentUD.extra_games?currentUD.extra_games:[])]; }
+
+async function saveUD() {
+  if(!currentUD||!currentUser) return;
+  await sbFetch('ug_users?username=eq.'+encodeURIComponent(currentUser), {
+    method:'PATCH', prefer:'return=minimal',
+    body: JSON.stringify({
+      points: currentUD.points, owned: currentUD.owned,
+      equipped: currentUD.equipped, hints: currentUD.hints,
+      extra_lives: currentUD.extra_lives, extra_games: currentUD.extra_games
+    })
+  });
 }
-function saveUD(user,data) { const u=getUsers(); u[user]=data; saveUsers(u); }
-function allGames() { const ud=currentUser?getUD(currentUser):null; return [...FIXED,...(ud?ud.extra:[])]; }
 
 // ════════════════════════════════════════
 // AUTH
@@ -313,22 +338,31 @@ function updateLoginUI() {
     ? '¿No tienes cuenta? <span>Regístrate</span>'
     : '¿Ya tienes cuenta? <span>Inicia sesión</span>';
 }
-function doLogin() {
+async function doLogin() {
   const user=document.getElementById('loginUser').value.trim();
   const pass=document.getElementById('loginPass').value;
   const err=document.getElementById('loginErr');
   if(!user||!pass){err.textContent='Llena todos los campos';return;}
-  const users=getUsers();
-  if(isLoginMode){
-    if(!users[user]){err.textContent='Usuario no encontrado';return;}
-    if(users[user].password!==btoa(pass)){err.textContent='Contraseña incorrecta';return;}
-    currentUser=user; closeLogin(); onLogin();
-  } else {
-    if(users[user]){err.textContent='Ese usuario ya existe';return;}
-    if(pass.length<4){err.textContent='Contraseña mínimo 4 caracteres';return;}
-    users[user]={password:btoa(pass),points:0,owned:[],equipped:{color:'',bg:''},hints:0,extraLives:0,extra:[]};
-    saveUsers(users); currentUser=user; closeLogin(); onLogin();
-  }
+  const btn=document.getElementById('loginSubmit');
+  btn.textContent='...';
+  try {
+    if(isLoginMode){
+      const data=await sbFetch('ug_users?username=eq.'+encodeURIComponent(user)+'&select=*');
+      if(!data||!data.length){err.textContent='Usuario no encontrado';btn.textContent='ENTRAR';return;}
+      if(data[0].password!==btoa(pass)){err.textContent='Contraseña incorrecta';btn.textContent='ENTRAR';return;}
+      currentUser=user; currentUD=data[0]; closeLogin(); onLogin();
+    } else {
+      if(pass.length<4){err.textContent='Contraseña mínimo 4 caracteres';btn.textContent='REGISTRAR';return;}
+      const check=await sbFetch('ug_users?username=eq.'+encodeURIComponent(user)+'&select=id');
+      if(check&&check.length){err.textContent='Ese usuario ya existe';btn.textContent='REGISTRAR';return;}
+      const res=await sbFetch('ug_users', {
+        method:'POST', prefer:'return=representation',
+        body:JSON.stringify({username:user,password:btoa(pass),points:0,owned:[],equipped:{color:'',bg:''},hints:0,extra_lives:0,extra_games:[]})
+      });
+      if(!res){err.textContent='Error al crear cuenta';btn.textContent='REGISTRAR';return;}
+      currentUser=user; currentUD=Array.isArray(res)?res[0]:res; closeLogin(); onLogin();
+    }
+  } catch(e) { err.textContent='Error de conexión'; btn.textContent=isLoginMode?'ENTRAR':'REGISTRAR'; }
 }
 function onLogin() {
   document.getElementById('loginBtn').textContent='👤 '+currentUser;
@@ -350,8 +384,8 @@ function doLogout() {
   render();
 }
 function updatePoints() {
-  if(!currentUser)return;
-  const p=getUD(currentUser).points;
+  if(!currentUser||!currentUD)return;
+  const p=currentUD.points;
   document.getElementById('pointsBadge').textContent='⭐ '+p;
   const sm=document.getElementById('shopPoints');
   if(sm)sm.textContent='⭐ '+p+' puntos';
@@ -361,9 +395,8 @@ function updatePoints() {
 // WIN / POINTS
 // ════════════════════════════════════════
 function awardPoints(n=3) {
-  if(!currentUser)return;
-  const ud=getUD(currentUser); ud.points+=n; saveUD(currentUser,ud);
-  updatePoints();
+  if(!currentUser||!currentUD)return;
+  currentUD.points+=n; saveUD(); updatePoints();
   const t=document.getElementById('winToast');
   t.textContent='🏆 ¡Ganaste! +'+n+' ⭐';
   t.style.display='block';
@@ -385,8 +418,8 @@ function shopTab(tab,btn) {
   renderShop();
 }
 function renderShop() {
-  if(!currentUser)return;
-  const ud=getUD(currentUser);
+  if(!currentUser||!currentUD)return;
+  const ud=currentUD;
   document.getElementById('shopPoints').textContent='⭐ '+ud.points+' puntos';
   const items=SHOP[shopCurrentTab]||[];
   document.getElementById('shopGrid').innerHTML=items.map(item=>{
@@ -404,8 +437,8 @@ function renderShop() {
   }).join('');
 }
 function buyItem(id) {
-  if(!currentUser)return;
-  const ud=getUD(currentUser);
+  if(!currentUser||!currentUD)return;
+  const ud=currentUD;
   // Find item
   let item=null;
   Object.values(SHOP).forEach(arr=>arr.forEach(i=>{if(i.id===id)item=i;}));
@@ -416,7 +449,7 @@ function buyItem(id) {
     ud.points-=item.price;
     if(item.type==='hint')ud.hints=(ud.hints||0)+item.val;
     if(item.type==='life')ud.extraLives=(ud.extraLives||0)+item.val;
-    saveUD(currentUser,ud); updatePoints(); renderShop();
+    saveUD(); updatePoints(); renderShop();
     const t=document.getElementById('winToast');
     t.textContent=(item.type==='hint'?'💡 +'+item.val+' pistas':'❤️ +'+item.val+' vidas')+' compradas!';
     t.style.display='block'; setTimeout(()=>t.style.display='none',2500);
@@ -426,17 +459,17 @@ function buyItem(id) {
     // Equip/unequip
     if(item.type==='color'){ud.equipped.color=ud.equipped.color===id?'':id;}
     if(item.type==='bg'){ud.equipped.bg=ud.equipped.bg===id?'':id;}
-    saveUD(currentUser,ud); applyEquipped(); renderShop(); return;
+    saveUD(); applyEquipped(); renderShop(); return;
   }
   if(ud.points<item.price){alert('No tienes suficientes puntos ⭐');return;}
   ud.points-=item.price; ud.owned.push(id);
   if(item.type==='color')ud.equipped.color=id;
   if(item.type==='bg')ud.equipped.bg=id;
-  saveUD(currentUser,ud); updatePoints(); applyEquipped(); renderShop();
+  saveUD(); updatePoints(); applyEquipped(); renderShop();
 }
 function applyEquipped() {
-  if(!currentUser)return;
-  const ud=getUD(currentUser);
+  if(!currentUser||!currentUD)return;
+  const ud=currentUD;
   // Color
   const col=ud.equipped&&ud.equipped.color?SHOP.colors.find(i=>i.id===ud.equipped.color):null;
   document.body.style.setProperty('--grid-color',col?col.val:'rgba(0,255,245,0.03)');
@@ -496,15 +529,20 @@ function saveGame(){
   if(!currentUser)return;
   const name=document.getElementById('iName').value.trim(),url=document.getElementById('iUrl').value.trim();
   if(!name||!url){alert('Escribe nombre y URL');return;}
-  const ud=getUD(currentUser);
-  if(!ud.extra)ud.extra=[];
-  ud.extra.unshift({id:Date.now(),name,url,cat:document.getElementById('iCat').value,tag:document.getElementById('iTag').value,emoji:selEmoji});
-  saveUD(currentUser,ud);closeAdd();render();
+  if(!currentUD)return;
+  if(!currentUD.extra_games)currentUD.extra_games=[];
+  currentUD.extra_games.unshift({id:Date.now(),name,url,cat:document.getElementById('iCat').value,tag:document.getElementById('iTag').value,emoji:selEmoji});
+  saveUD();closeAdd();render();
 }
 
 // ════════════════════════════════════════
 // KEYBOARD
 // ════════════════════════════════════════
+// Listen for win messages from games
+window.addEventListener('message', e => {
+  if(e.data&&e.data.type==='ugWin') awardPoints(e.data.points||3);
+});
+
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape')closePlayer();
   if(e.key==='f'||e.key==='F'){window.open('https://docs.google.com/document/u/0/?tgif=d','_blank');return;}
