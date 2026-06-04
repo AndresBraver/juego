@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zombie Shooter</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a0a1a; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:'Courier New',monospace; color:#fff; }
+  h1 { color:#39ff14; font-size:24px; margin-bottom:6px; text-shadow:0 0 15px #39ff14; letter-spacing:3px; }
+  #info { font-size:15px; color:#aaa; margin-bottom:8px; display:flex; gap:20px; }
+  canvas { border:2px solid #39ff14; box-shadow:0 0 20px rgba(57,255,20,0.3); border-radius:4px; cursor:crosshair; }
+  #msg { margin-top:10px; font-size:16px; color:#39ff14; min-height:22px; text-align:center; }
+  #startBtn { margin-top:8px; background:#39ff14; color:#000; border:none; padding:10px 28px; font-size:14px; font-family:'Courier New',monospace; font-weight:bold; border-radius:6px; cursor:pointer; letter-spacing:2px; }
+  #hint { margin-top:6px; font-size:11px; color:#555; }
+</style>
+</head>
+<body>
+<h1>🧟 ZOMBIE SHOOTER</h1>
+<div id="info"><span>❤️ <b id="lives">5</b></span><span>PUNTOS: <b id="pts">0</b></span><span>OLA: <b id="wave">1</b></span></div>
+<canvas id="c" width="480" height="380"></canvas>
+<div id="msg">Haz clic para disparar</div>
+<button id="startBtn">INICIAR</button>
+<div id="hint">WASD=Mover | Mouse/Toque=Apuntar y disparar</div>
+<script>
+const canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+const W=480,H=380;
+let player,zombies,bullets,score,lives,wave,running,animId,keys={},mouseX,mouseY,particles,shootCd;
+
+function init(){
+  player={x:W/2,y:H/2,r:14,angle:0};
+  zombies=[]; bullets=[]; particles=[]; score=0; lives=5; wave=1; shootCd=0;
+  mouseX=W/2; mouseY=H/2;
+  document.getElementById('pts').textContent=0;
+  document.getElementById('lives').textContent=5;
+  document.getElementById('wave').textContent=1;
+  document.getElementById('msg').textContent='';
+  running=true; spawnWave();
+  cancelAnimationFrame(animId);
+  animate();
+}
+
+function spawnWave(){
+  for(let i=0;i<3+wave*2;i++){
+    const side=Math.floor(Math.random()*4);
+    let x,y;
+    if(side===0){x=Math.random()*W;y=-30;} else if(side===1){x=W+30;y=Math.random()*H;}
+    else if(side===2){x=Math.random()*W;y=H+30;} else {x=-30;y=Math.random()*H;}
+    zombies.push({x,y,r:16,hp:1+Math.floor(wave/3),maxhp:1+Math.floor(wave/3),speed:0.8+wave*0.1});
+  }
+}
+
+function animate(){ if(!running)return; update(); draw(); animId=requestAnimationFrame(animate); }
+
+function update(){
+  shootCd=Math.max(0,shootCd-1);
+  const sp=2.5;
+  if(keys['w']||keys['ArrowUp']) player.y=Math.max(player.r,player.y-sp);
+  if(keys['s']||keys['ArrowDown']) player.y=Math.min(H-player.r,player.y+sp);
+  if(keys['a']||keys['ArrowLeft']) player.x=Math.max(player.r,player.x-sp);
+  if(keys['d']||keys['ArrowRight']) player.x=Math.min(W-player.r,player.x+sp);
+  player.angle=Math.atan2(mouseY-player.y,mouseX-player.x);
+  // Bullets
+  bullets=bullets.filter(b=>{ b.x+=b.vx; b.y+=b.vy; return b.x>0&&b.x<W&&b.y>0&&b.y<H; });
+  // Zombies
+  zombies.forEach(z=>{ const a=Math.atan2(player.y-z.y,player.x-z.x); z.x+=Math.cos(a)*z.speed; z.y+=Math.sin(a)*z.speed; });
+  // Bullet-zombie
+  for(let b of bullets) for(let z of zombies){
+    if(Math.hypot(b.x-z.x,b.y-z.y)<z.r+4){ z.hp--; b.x=-99; for(let i=0;i<4;i++) particles.push({x:z.x,y:z.y,vx:(Math.random()-0.5)*5,vy:(Math.random()-0.5)*5,life:15,color:'#39ff14'}); }
+  }
+  zombies=zombies.filter(z=>z.hp>0);
+  // Zombie-player
+  for(let z of zombies){
+    if(Math.hypot(z.x-player.x,z.y-player.y)<z.r+player.r){ lives--; z.x=-200; document.getElementById('lives').textContent=lives; if(lives<=0){running=false;document.getElementById('msg').textContent='💀 GAME OVER — Puntos: '+score;} }
+  }
+  zombies=zombies.filter(z=>z.x>-100);
+  // Particles
+  particles=particles.filter(p=>{ p.x+=p.vx; p.y+=p.vy; p.life--; return p.life>0; });
+  // Score
+  score+=0.01; document.getElementById('pts').textContent=Math.floor(score);
+  if(zombies.length===0){ wave++; document.getElementById('wave').textContent=wave; if(wave%3===0)try{localStorage.setItem('ugWin',Date.now());}catch(e){} spawnWave(); }
+}
+
+function shoot(){
+  if(!running||shootCd>0) return;
+  bullets.push({x:player.x,y:player.y,vx:Math.cos(player.angle)*10,vy:Math.sin(player.angle)*10});
+  shootCd=8;
+}
+
+function draw(){
+  ctx.fillStyle='#0a0a1a'; ctx.fillRect(0,0,W,H);
+  // Grid
+  ctx.strokeStyle='rgba(57,255,20,0.04)'; ctx.lineWidth=1;
+  for(let i=0;i<W;i+=40){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,H);ctx.stroke();}
+  for(let i=0;i<H;i+=40){ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(W,i);ctx.stroke();}
+  // Particles
+  particles.forEach(p=>{ ctx.fillStyle=p.color; ctx.globalAlpha=p.life/15; ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2); ctx.fill(); });
+  ctx.globalAlpha=1;
+  // Zombies
+  ctx.font='26px serif';
+  zombies.forEach(z=>{ ctx.fillText('🧟',z.x-13,z.y+10);
+    const bw=z.r*2, bh=4; ctx.fillStyle='#333'; ctx.fillRect(z.x-z.r,z.y-z.r-10,bw,bh);
+    ctx.fillStyle='#ff0055'; ctx.fillRect(z.x-z.r,z.y-z.r-10,bw*(z.hp/z.maxhp),bh);
+  });
+  // Player
+  ctx.fillStyle='#00fff5'; ctx.shadowColor='#00fff5'; ctx.shadowBlur=10;
+  ctx.beginPath(); ctx.arc(player.x,player.y,player.r,0,Math.PI*2); ctx.fill();
+  // Gun
+  ctx.strokeStyle='#ffe600'; ctx.lineWidth=5; ctx.shadowColor='#ffe600'; ctx.shadowBlur=6;
+  ctx.beginPath(); ctx.moveTo(player.x,player.y);
+  ctx.lineTo(player.x+Math.cos(player.angle)*24,player.y+Math.sin(player.angle)*24); ctx.stroke();
+  ctx.shadowBlur=0;
+  // Bullets
+  ctx.fillStyle='#ffe600'; ctx.shadowColor='#ffe600'; ctx.shadowBlur=8;
+  bullets.forEach(b=>{ ctx.beginPath(); ctx.arc(b.x,b.y,4,0,Math.PI*2); ctx.fill(); });
+  ctx.shadowBlur=0;
+}
+
+document.addEventListener('keydown',e=>{ keys[e.key]=true; });
+document.addEventListener('keyup',e=>{ keys[e.key]=false; });
+canvas.addEventListener('mousemove',e=>{ const r=canvas.getBoundingClientRect(); mouseX=e.clientX-r.left; mouseY=e.clientY-r.top; });
+canvas.addEventListener('mousedown',shoot);
+canvas.addEventListener('touchmove',e=>{ const r=canvas.getBoundingClientRect(); mouseX=e.touches[0].clientX-r.left; mouseY=e.touches[0].clientY-r.top; e.preventDefault(); },{passive:false});
+canvas.addEventListener('touchstart',e=>{ const r=canvas.getBoundingClientRect(); mouseX=e.touches[0].clientX-r.left; mouseY=e.touches[0].clientY-r.top; shoot(); e.preventDefault(); },{passive:false});
+document.getElementById('startBtn').addEventListener('click',init);
+draw();
+</script>
+</body>
+</html>

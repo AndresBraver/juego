@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a0a1a; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; font-family:'Courier New',monospace; color:#fff; padding:20px; }
+  h1 { color:#00fff5; font-size:26px; margin-bottom:8px; text-shadow:0 0 15px #00fff5; letter-spacing:3px; }
+  #info { font-size:16px; color:#aaa; margin-bottom:14px; display:flex; gap:30px; }
+  #grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; }
+  .card { width:80px; height:80px; background:#0d0d2e; border:2px solid #1e1e4e; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:36px; cursor:pointer; transition:all 0.2s; user-select:none; }
+  .card:hover { border-color:#00fff5; }
+  .card.flipped { background:#1a1a4e; border-color:#00fff5; }
+  .card.matched { background:#0a2e1a; border-color:#39ff14; }
+  .card.wrong { border-color:#ff0055; background:#2e0a1a; }
+  #msg { font-size:16px; color:#00fff5; min-height:22px; text-align:center; }
+  #startBtn { margin-top:10px; background:#00fff5; color:#000; border:none; padding:10px 28px; font-size:14px; font-family:'Courier New',monospace; font-weight:bold; border-radius:6px; cursor:pointer; }
+</style>
+</head>
+<body>
+<h1>🃏 MEMORY</h1>
+<div id="info"><span>MOVIMIENTOS: <b id="moves">0</b></span><span>PAREJAS: <b id="pairs">0</b>/8</span></div>
+<div id="grid" id="grid"></div>
+<div id="msg">Presiona INICIO para jugar</div>
+<button id="startBtn">INICIAR</button>
+<script>
+const EMOJIS = ['🎮','🚀','🐉','💎','🏆','⚡','🔥','🌊'];
+let cards, flipped, matched, moves, lock;
+
+function init() {
+  moves = 0; matched = 0; flipped = []; lock = false;
+  document.getElementById('moves').textContent = 0;
+  document.getElementById('pairs').textContent = 0;
+  document.getElementById('msg').textContent = '';
+  const deck = [...EMOJIS, ...EMOJIS].sort(() => Math.random() - 0.5);
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  cards = deck.map((emoji, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.textContent = '❓';
+    card.dataset.emoji = emoji;
+    card.dataset.idx = i;
+    card.addEventListener('click', () => flip(card, i));
+    grid.appendChild(card);
+    return card;
+  });
+}
+
+function flip(card, idx) {
+  if (lock || card.classList.contains('matched') || flipped.includes(idx)) return;
+  card.textContent = card.dataset.emoji;
+  card.classList.add('flipped');
+  flipped.push(idx);
+  if (flipped.length === 2) {
+    moves++;
+    document.getElementById('moves').textContent = moves;
+    lock = true;
+    const [a, b] = flipped.map(i => cards[i]);
+    if (a.dataset.emoji === b.dataset.emoji) {
+      a.classList.add('matched'); b.classList.add('matched');
+      matched++;
+      document.getElementById('pairs').textContent = matched;
+      flipped = []; lock = false;
+      if (matched === 8) { document.getElementById('msg').textContent = '🏆 ¡GANASTE! en ' + moves + ' movimientos'; try{localStorage.setItem('ugWin',Date.now());}catch(e){} }
+    } else {
+      a.classList.add('wrong'); b.classList.add('wrong');
+      setTimeout(() => {
+        a.textContent = '❓'; b.textContent = '❓';
+        a.classList.remove('flipped','wrong'); b.classList.remove('flipped','wrong');
+        flipped = []; lock = false;
+      }, 900);
+    }
+  }
+}
+
+document.getElementById('startBtn').addEventListener('click', init);
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parachute</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a0a1a; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:'Courier New',monospace; color:#fff; }
+  h1 { color:#00fff5; font-size:26px; margin-bottom:6px; text-shadow:0 0 15px #00fff5; letter-spacing:3px; }
+  #info { font-size:15px; color:#aaa; margin-bottom:8px; display:flex; gap:30px; }
+  canvas { border:2px solid #00fff5; box-shadow:0 0 20px rgba(0,255,245,0.3); border-radius:4px; }
+  #msg { margin-top:10px; font-size:16px; color:#00fff5; min-height:22px; text-align:center; }
+  #startBtn { margin-top:8px; background:#00fff5; color:#000; border:none; padding:10px 28px; font-size:14px; font-family:'Courier New',monospace; font-weight:bold; border-radius:6px; cursor:pointer; }
+  #hint { margin-top:6px; font-size:11px; color:#555; }
+</style>
+</head>
+<body>
+<h1>🪂 PARACHUTE</h1>
+<div id="info"><span>PUNTOS: <b id="pts">0</b></span><span>VIDAS: <b id="lives">3</b></span></div>
+<canvas id="c" width="400" height="420"></canvas>
+<div id="msg">Presiona INICIO</div>
+<button id="startBtn">INICIAR</button>
+<div id="hint">← → o A D para mover el bote</div>
+<script>
+const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+const W = 400, H = 420, BOAT_Y = H-40;
+let boat, parachutes, score, lives, speed, running, animId, keys = {}, spawnTimer;
+
+function init() {
+  boat = { x: W/2-35, y: BOAT_Y, w: 70, h: 30 };
+  parachutes = []; score = 0; lives = 3; speed = 1.5; spawnTimer = 0;
+  document.getElementById('pts').textContent = 0;
+  document.getElementById('lives').textContent = 3;
+  document.getElementById('msg').textContent = '';
+  running = true;
+  cancelAnimationFrame(animId);
+  animate();
+}
+
+function animate() { if (!running) return; update(); draw(); animId = requestAnimationFrame(animate); }
+
+function update() {
+  score += 0.02;
+  speed = 1.5 + Math.floor(score/30) * 0.2;
+  document.getElementById('pts').textContent = Math.floor(score);
+
+  if (keys['ArrowLeft'] || keys['a']) boat.x = Math.max(0, boat.x-5);
+  if (keys['ArrowRight'] || keys['d']) boat.x = Math.min(W-boat.w, boat.x+5);
+
+  spawnTimer++;
+  if (spawnTimer > Math.max(40, 80-Math.floor(score/10))) {
+    parachutes.push({ x: 30+Math.random()*(W-60), y: -40, vx: (Math.random()-0.5)*1.5, vy: speed, r: 16 });
+    spawnTimer = 0;
+  }
+
+  parachutes = parachutes.filter(p => {
+    p.x += p.vx; p.y += p.vy;
+    if (p.y+p.r > boat.y && p.x > boat.x-p.r && p.x < boat.x+boat.w+p.r) {
+      score += 10; document.getElementById('pts').textContent = Math.floor(score); return false;
+    }
+    if (p.y > H+20) {
+      lives--; document.getElementById('lives').textContent = lives;
+      if (lives <= 0) { running = false; document.getElementById('msg').textContent = '💀 GAME OVER — Puntos: ' + Math.floor(score); }
+      return false;
+    }
+    return true;
+  });
+}
+
+function draw() {
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#050514'); grad.addColorStop(0.7,'#050a20'); grad.addColorStop(1,'#0a1a10');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+  // Water
+  ctx.fillStyle = '#051a3e'; ctx.fillRect(0, BOAT_Y+boat.h, W, H-BOAT_Y-boat.h);
+  ctx.strokeStyle = 'rgba(0,255,245,0.3)'; ctx.lineWidth = 2;
+  for (let x=0; x<W; x+=40) {
+    ctx.beginPath(); ctx.moveTo(x, BOAT_Y+boat.h+5);
+    ctx.quadraticCurveTo(x+20, BOAT_Y+boat.h, x+40, BOAT_Y+boat.h+5); ctx.stroke();
+  }
+  // Parachutes
+  parachutes.forEach(p => {
+    ctx.fillStyle = 'rgba(255,0,85,0.8)'; ctx.shadowColor = '#ff0055'; ctx.shadowBlur = 6;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, Math.PI, 0); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1; ctx.shadowBlur = 0;
+    ctx.beginPath(); ctx.moveTo(p.x-p.r, p.y); ctx.lineTo(p.x, p.y+p.r+10); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(p.x+p.r, p.y); ctx.lineTo(p.x, p.y+p.r+10); ctx.stroke();
+    ctx.font = '18px serif'; ctx.fillText('🧑', p.x-9, p.y+p.r+28);
+  });
+  // Boat
+  ctx.fillStyle = '#00fff5'; ctx.shadowColor = '#00fff5'; ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.moveTo(boat.x, boat.y); ctx.lineTo(boat.x+boat.w, boat.y);
+  ctx.lineTo(boat.x+boat.w-10, boat.y+boat.h); ctx.lineTo(boat.x+10, boat.y+boat.h);
+  ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+}
+
+document.addEventListener('keydown', e => { keys[e.key] = true; });
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+let touchX = null;
+canvas.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; e.preventDefault(); }, {passive:false});
+canvas.addEventListener('touchmove', e => {
+  if (touchX === null) return;
+  const dx = e.touches[0].clientX - touchX;
+  boat.x = Math.max(0, Math.min(W-boat.w, boat.x+dx*0.5));
+  touchX = e.touches[0].clientX; e.preventDefault();
+}, {passive:false});
+document.getElementById('startBtn').addEventListener('click', init);
+draw();
+</script>
+</body>
+</html>

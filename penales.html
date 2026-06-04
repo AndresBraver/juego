@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Penales</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0a0a1a; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:'Courier New',monospace; color:#fff; }
+  h1 { color:#39ff14; font-size:26px; margin-bottom:6px; text-shadow:0 0 15px #39ff14; letter-spacing:3px; }
+  #info { font-size:15px; color:#aaa; margin-bottom:8px; display:flex; gap:30px; }
+  canvas { border:2px solid #39ff14; box-shadow:0 0 20px rgba(57,255,20,0.3); border-radius:4px; cursor:crosshair; }
+  #msg { margin-top:10px; font-size:18px; color:#39ff14; min-height:24px; text-align:center; font-weight:bold; }
+  #startBtn { margin-top:8px; background:#39ff14; color:#000; border:none; padding:10px 28px; font-size:14px; font-family:'Courier New',monospace; font-weight:bold; border-radius:6px; cursor:pointer; }
+  #hint { margin-top:6px; font-size:11px; color:#555; }
+</style>
+</head>
+<body>
+<h1>⚽ PENALES</h1>
+<div id="info"><span>GOLES: <b id="goals">0</b></span><span>TIROS: <b id="shots">5</b></span></div>
+<canvas id="c" width="480" height="360"></canvas>
+<div id="msg">Haz clic en la portería para disparar</div>
+<button id="startBtn">INICIAR</button>
+<div id="hint">Haz clic dentro del área verde para tirar</div>
+<script>
+const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
+const W = 480, H = 360;
+const PX = 100, PW = 280, PY = 40, PH = 140;
+let goals, shotsLeft, ball, gk, state, animId, running, targetX, targetY, gkTarget;
+
+function init() {
+  goals = 0; shotsLeft = 5; state = 'waiting'; running = true;
+  document.getElementById('goals').textContent = 0;
+  document.getElementById('shots').textContent = 5;
+  document.getElementById('msg').textContent = 'Haz clic en la portería';
+  gk = { x: PX+PW/2, y: PY+PH/2, w: 50, h: 70 };
+  resetBall();
+  cancelAnimationFrame(animId);
+  animate();
+}
+
+function resetBall() {
+  ball = { x: W/2, y: H-60, r: 16, progress: 0, active: false };
+  state = 'waiting';
+}
+
+function kick(tx, ty) {
+  if (state !== 'waiting' || !running) return;
+  if (tx < PX || tx > PX+PW || ty < PY || ty > PY+PH) return;
+  targetX = tx; targetY = ty;
+  ball.active = true; ball.progress = 0; state = 'flying';
+  const dir = Math.random() > 0.5 ? 1 : -1;
+  gkTarget = PX + PW/2 + dir * (PW * 0.3 + Math.random() * PW * 0.1);
+}
+
+function animate() { if (!running) return; update(); draw(); animId = requestAnimationFrame(animate); }
+
+function update() {
+  if (state !== 'flying') return;
+  ball.progress = Math.min(1, ball.progress + 0.03);
+  ball.x = W/2 + (targetX - W/2) * ball.progress;
+  ball.y = (H-60) + (targetY - (H-60)) * ball.progress;
+  gk.x += (gkTarget - gk.x) * 0.1;
+  if (ball.progress >= 1) {
+    const saved = Math.abs(ball.x - gk.x) < gk.w/2 + ball.r && Math.abs(ball.y - gk.y) < gk.h/2 + ball.r;
+    if (saved) { document.getElementById('msg').textContent = '🧤 ¡ATAJADO!'; }
+    else { goals++; document.getElementById('goals').textContent = goals; document.getElementById('msg').textContent = '⚽ ¡GOOOL!'; }
+    shotsLeft--; document.getElementById('shots').textContent = shotsLeft;
+    state = 'result';
+    setTimeout(() => {
+      if (shotsLeft <= 0) { running = false; document.getElementById('msg').textContent = 'FIN — ' + goals + '/5 goles'; if(goals>=3)try{localStorage.setItem('ugWin',Date.now());}catch(e){} return; }
+      document.getElementById('msg').textContent = 'Haz clic en la portería';
+      resetBall();
+    }, 1200);
+  }
+}
+
+function draw() {
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#0a2010'); grad.addColorStop(1,'#0d2a14');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
+  // Net
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
+  for (let x=PX; x<=PX+PW; x+=20) { ctx.beginPath(); ctx.moveTo(x,PY); ctx.lineTo(x,PY+PH); ctx.stroke(); }
+  for (let y=PY; y<=PY+PH; y+=20) { ctx.beginPath(); ctx.moveTo(PX,y); ctx.lineTo(PX+PW,y); ctx.stroke(); }
+  // Target zone
+  if (state === 'waiting') { ctx.fillStyle = 'rgba(57,255,20,0.12)'; ctx.fillRect(PX,PY,PW,PH); }
+  // Posts
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 5; ctx.shadowColor = '#fff'; ctx.shadowBlur = 8;
+  ctx.strokeRect(PX, PY, PW, PH); ctx.shadowBlur = 0;
+  // Goalkeeper
+  ctx.fillStyle = '#ff9900'; ctx.shadowColor = '#ff9900'; ctx.shadowBlur = 6;
+  ctx.fillRect(gk.x-gk.w/2, gk.y-gk.h/2, gk.w, gk.h); ctx.shadowBlur = 0;
+  ctx.font = '24px serif'; ctx.fillText('🧤', gk.x-12, gk.y-gk.h/2+10);
+  // Ball
+  const scale = 0.5 + ball.progress*0.5;
+  const g = ctx.createRadialGradient(ball.x-3, ball.y-3, 1, ball.x, ball.y, ball.r*scale);
+  g.addColorStop(0,'#fff'); g.addColorStop(1,'#ccc');
+  ctx.fillStyle = g; ctx.shadowColor = '#fff'; ctx.shadowBlur = 6;
+  ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r*scale, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+}
+
+canvas.addEventListener('click', e => { const r = canvas.getBoundingClientRect(); kick(e.clientX-r.left, e.clientY-r.top); });
+canvas.addEventListener('touchstart', e => { const r = canvas.getBoundingClientRect(); kick(e.touches[0].clientX-r.left, e.touches[0].clientY-r.top); e.preventDefault(); }, {passive:false});
+document.getElementById('startBtn').addEventListener('click', init);
+draw();
+</script>
+</body>
+</html>
