@@ -78,7 +78,7 @@ function update(){
   particles=particles.filter(p=>{ p.x+=p.vx; p.y+=p.vy; p.life--; return p.life>0; });
   // Score
   score+=0.01; document.getElementById('pts').textContent=Math.floor(score);
-  if(zombies.length===0){ wave++; document.getElementById('wave').textContent=wave; if(wave%3===0&&window.ugWin)window.ugWin(); spawnWave(); }
+  if(zombies.length===0){ wave++; document.getElementById('wave').textContent=wave; if(wave%3===0)try{localStorage.setItem('ugWin',Date.now());}catch(e){} spawnWave(); }
 }
 
 function shoot(){

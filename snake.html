@@ -55,7 +55,7 @@ function tick() {
   snake.unshift(head);
   if (head.x===food.x && head.y===food.y) {
     score += 10;
-    document.getElementById('pts').textContent = score; if(score===100&&window.ugWin)window.ugWin();
+    document.getElementById('pts').textContent = score; if(score===100||score===200||score===300)try{localStorage.setItem('ugWin',Date.now());}catch(e){}
     placeFood();
   } else { snake.pop(); }
   draw();

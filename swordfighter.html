@@ -107,7 +107,7 @@ function update() {
   updateBars();
 
   if (p.hp <= 0) { running=false; document.getElementById('msg').textContent='💀 DERROTA — '+score+' pts'; }
-  if (e.hp <= 0) { score+=50; document.getElementById('pts').textContent=score+'pts'; running=false; document.getElementById('msg').textContent='🏆 ¡VICTORIA! '+score+' pts'; if(window.ugWin)window.ugWin(); }
+  if (e.hp <= 0) { score+=50; document.getElementById('pts').textContent=score+'pts'; running=false; document.getElementById('msg').textContent='🏆 ¡VICTORIA! '+score+' pts'; try{localStorage.setItem('ugWin',Date.now());}catch(e){} }
 }
 
 function hitCheck(atk, def) {
