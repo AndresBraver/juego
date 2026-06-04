@@ -75,7 +75,7 @@ function move(dir){
   if(dir==='down') b=rotate(rotate(rotate(b)));
   if(JSON.stringify(b)!==JSON.stringify(board)){ board=b; moved=true; }
   if(moved){ addTile(); document.getElementById('pts').textContent=score; if(score>best){ best=score; document.getElementById('best').textContent=best; } }
-  if(board.flat().includes(2048)&&!won){ won=true; document.getElementById('msg').textContent='🏆 ¡GANASTE!'; }
+  if(board.flat().includes(2048)&&!won){ won=true; document.getElementById('msg').textContent='🏆 ¡GANASTE!'; if(window.ugWin)window.ugWin(); }
   render();
   // Check game over
   if(!board.flat().includes(0)){

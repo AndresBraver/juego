@@ -68,7 +68,7 @@ function update() {
     shotsLeft--; document.getElementById('shots').textContent = shotsLeft;
     state = 'result';
     setTimeout(() => {
-      if (shotsLeft <= 0) { running = false; document.getElementById('msg').textContent = 'FIN — ' + goals + '/5 goles'; return; }
+      if (shotsLeft <= 0) { running = false; document.getElementById('msg').textContent = 'FIN — ' + goals + '/5 goles'; if(goals>=3&&window.ugWin)window.ugWin(); return; }
       document.getElementById('msg').textContent = 'Haz clic en la portería';
       resetBall();
     }, 1200);

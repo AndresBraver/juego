@@ -104,7 +104,7 @@ function update() {
 
   if (bricks.every(b => !b.alive)) {
     running = false;
-    document.getElementById('msg').textContent = '🏆 ¡GANASTE! Puntos: ' + score;
+    document.getElementById('msg').textContent = '🏆 ¡GANASTE! Puntos: ' + score; if(window.ugWin)window.ugWin();
   }
 }
 

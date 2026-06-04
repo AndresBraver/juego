@@ -64,7 +64,7 @@ function flip(card, idx) {
       matched++;
       document.getElementById('pairs').textContent = matched;
       flipped = []; lock = false;
-      if (matched === 8) document.getElementById('msg').textContent = '🏆 ¡GANASTE! en ' + moves + ' movimientos';
+      if (matched === 8) document.getElementById('msg').textContent = '🏆 ¡GANASTE! en ' + moves + ' movimientos'; if(window.ugWin)window.ugWin();
     } else {
       a.classList.add('wrong'); b.classList.add('wrong');
       setTimeout(() => {

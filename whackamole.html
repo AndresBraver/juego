@@ -92,7 +92,7 @@ function whack(i){
 function endGame(){
   running=false; intervals.forEach(clearInterval);
   holes.forEach(h=>{ h.textContent='🌑'; h.className='hole'; });
-  document.getElementById('msg').textContent=`🏆 ¡TIEMPO! Puntos finales: ${score}`;
+  document.getElementById('msg').textContent=`🏆 ¡TIEMPO! Puntos finales: ${score}`; if(window.ugWin)window.ugWin();
 }
 
 document.getElementById('startBtn').addEventListener('click',init);

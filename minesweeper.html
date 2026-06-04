@@ -74,7 +74,7 @@ function reveal(r,c){
   board[r][c].revealed=true; revealed++;
   if(board[r][c].mine){ running=false; revealAll(); document.getElementById('msg').textContent='💥 ¡BOOM! Game Over'; return; }
   if(board[r][c].num===0) for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){ const nr=r+dr,nc=c+dc; if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&!board[nr][nc].revealed) reveal(nr,nc); }
-  if(revealed===ROWS*COLS-MINES){ running=false; document.getElementById('msg').textContent='🏆 ¡GANASTE!'; }
+  if(revealed===ROWS*COLS-MINES){ running=false; document.getElementById('msg').textContent='🏆 ¡GANASTE!'; if(window.ugWin)window.ugWin(); }
   renderGrid();
 }
 

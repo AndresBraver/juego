@@ -114,7 +114,7 @@ function draw(){
 function endGame(){
   running=false; clearInterval(countdown); cancelAnimationFrame(animId);
   ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(0,0,W,H);
-  document.getElementById('msg').textContent=`🏆 FIN — Puntos: ${score}`;
+  document.getElementById('msg').textContent=`🏆 FIN — Puntos: ${score}`; if(window.ugWin)window.ugWin();
 }
 
 canvas.addEventListener('mousemove',e=>{ const r=canvas.getBoundingClientRect(); blade.push({x:e.clientX-r.left,y:e.clientY-r.top}); });
