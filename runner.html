@@ -43,6 +43,7 @@ function update() {
   frame++;
   score += 0.05;
   speed = 4 + Math.floor(score/30) * 0.3;
+  if(Math.floor(score)%100===0&&Math.floor(score)>0&&window.ugWin)window.ugWin();
 
   player.vy += 0.5; player.y += player.vy;
   if (player.y >= GROUND) { player.y = GROUND; player.vy = 0; player.jumps = 0; }
