@@ -544,12 +544,18 @@ function saveGame(){
 // ════════════════════════════════════════
 // KEYBOARD
 // ════════════════════════════════════════
-// Listen for win messages from games
-window.addEventListener('message', e => {
-  if(e.data&&e.data.type==='ugWin'){
-    awardPoints(e.data.points||3);
-  }
-});
+// Poll localStorage for win signal from games
+let lastWinCheck = 0;
+setInterval(() => {
+  try {
+    const val = localStorage.getItem('ugWin');
+    if(val && parseInt(val) > lastWinCheck) {
+      lastWinCheck = parseInt(val);
+      awardPoints(3);
+      localStorage.removeItem('ugWin');
+    }
+  } catch(e) {}
+}, 500);
 
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape')closePlayer();
