@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#050510; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:'Courier New',monospace; color:#fff; overflow:hidden; }
+canvas { display:block; border-radius:8px; box-shadow:0 0 40px rgba(57,255,20,0.3); }
+#ui { display:flex; gap:30px; margin-bottom:10px; font-family:'Courier New',monospace; font-size:13px; }
+.stat { text-align:center; }
+.stat-val { font-size:22px; font-weight:bold; color:#39ff14; text-shadow:0 0 10px #39ff14; }
+.stat-lbl { font-size:10px; color:#555; letter-spacing:2px; }
+#msg { margin-top:10px; font-size:13px; color:#39ff14; min-height:18px; text-align:center; }
+</style>
+</head>
+<body>
+<div id="ui">
+  <div class="stat"><div class="stat-val" id="pts">0</div><div class="stat-lbl">PUNTOS</div></div>
+  <div class="stat"><div class="stat-val" id="hi">0</div><div class="stat-lbl">RECORD</div></div>
+</div>
+<canvas id="c" width="400" height="400"></canvas>
+<div id="msg">Presiona una tecla para empezar</div>
+<script>
+const C = document.getElementById('c');
+const ctx = C.getContext('2d');
+const CELL=20, COLS=20, ROWS=20, W=400, H=400;
+
+let snake,dir,nextDir,food,score,hi,running,animId,frame,particles,powerup,powerupTimer;
+hi = parseInt(localStorage.getItem('snakeHi')||'0');
+document.getElementById('hi').textContent=hi;
+
+const COLORS = {
+  head: '#ffffff',
+  body: ['#39ff14','#2ecc11','#27ae0e'],
+  food: '#ff0055',
+  powerup: '#ffe600'
+};
+
+function init() {
+  snake = [{x:10,y:10},{x:9,y:10},{x:8,y:10},{x:7,y:10}];
+  dir={x:1,y:0}; nextDir={x:1,y:0};
+  score=0; frame=0; particles=[]; powerup=null; powerupTimer=0;
+  document.getElementById('pts').textContent=0;
+  document.getElementById('msg').textContent='';
+  placeFood();
+  running=true;
+  clearInterval(animId);
+  animId=setInterval(tick,110);
+}
+
+function placeFood() {
+  do { food={x:Math.floor(Math.random()*COLS),y:Math.floor(Math.random()*ROWS)}; }
+  while(snake.some(s=>s.x===food.x&&s.y===food.y));
+  if(Math.random()<0.15&&!powerup){
+    do { powerup={x:Math.floor(Math.random()*COLS),y:Math.floor(Math.random()*ROWS)}; }
+    while(snake.some(s=>s.x===powerup.x&&s.y===powerup.y));
+    powerupTimer=80;
+  }
+}
+
+function addParticles(x,y,color,n=6) {
+  for(let i=0;i<n;i++) particles.push({
+    x:x*CELL+CELL/2, y:y*CELL+CELL/2,
+    vx:(Math.random()-0.5)*6, vy:(Math.random()-0.5)*6,
+    life:20, color, size:Math.random()*4+2
+  });
+}
+
+function tick() {
+  dir={...nextDir};
+  const head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+  if(head.x<0||head.x>=COLS||head.y<0||head.y>=ROWS||snake.some(s=>s.x===head.x&&s.y===head.y)){
+    gameOver(); return;
+  }
+  snake.unshift(head);
+  if(head.x===food.x&&head.y===food.y){
+    score+=10; document.getElementById('pts').textContent=score;
+    if(score>hi){hi=score;localStorage.setItem('snakeHi',hi);document.getElementById('hi').textContent=hi;}
+    if(score===100||score===200||score===300) try{localStorage.setItem('ugWin',Date.now());}catch(e){}
+    addParticles(food.x,food.y,'#ff0055',8);
+    placeFood();
+  } else if(powerup&&head.x===powerup.x&&head.y===powerup.y){
+    score+=30; document.getElementById('pts').textContent=score;
+    addParticles(powerup.x,powerup.y,'#ffe600',12);
+    powerup=null;
+    snake.push({...snake[snake.length-1]});
+    snake.push({...snake[snake.length-1]});
+  } else {
+    snake.pop();
+  }
+  if(powerupTimer>0){powerupTimer--;if(powerupTimer===0)powerup=null;}
+  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.2;p.life--;return p.life>0;});
+  draw();
+}
+
+function gameOver() {
+  running=false; clearInterval(animId);
+  addParticles(snake[0].x,snake[0].y,'#ff0055',15);
+  document.getElementById('msg').textContent='💀 GAME OVER — '+score+' pts | Tecla para reiniciar';
+  draw();
+}
+
+function drawGrid() {
+  ctx.strokeStyle='rgba(57,255,20,0.04)'; ctx.lineWidth=1;
+  for(let i=0;i<=COLS;i++){ctx.beginPath();ctx.moveTo(i*CELL,0);ctx.lineTo(i*CELL,H);ctx.stroke();}
+  for(let i=0;i<=ROWS;i++){ctx.beginPath();ctx.moveTo(0,i*CELL);ctx.lineTo(W,i*CELL);ctx.stroke();}
+}
+
+function drawFood() {
+  const x=food.x*CELL+CELL/2, y=food.y*CELL+CELL/2;
+  const pulse=0.8+Math.sin(frame*0.15)*0.2;
+  ctx.save(); ctx.translate(x,y); ctx.scale(pulse,pulse);
+  // Glow
+  ctx.shadowColor='#ff0055'; ctx.shadowBlur=15;
+  ctx.fillStyle='#ff0055';
+  ctx.beginPath(); ctx.arc(0,0,CELL/2-3,0,Math.PI*2); ctx.fill();
+  // Shine
+  ctx.fillStyle='rgba(255,255,255,0.5)';
+  ctx.beginPath(); ctx.arc(-3,-3,3,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0; ctx.restore();
+
+  // Apple stem
+  ctx.strokeStyle='#884400'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(x,y-CELL/2+2); ctx.lineTo(x+3,y-CELL/2-3); ctx.stroke();
+}
+
+function drawPowerup() {
+  if(!powerup) return;
+  const x=powerup.x*CELL+CELL/2, y=powerup.y*CELL+CELL/2;
+  const pulse=0.8+Math.sin(frame*0.2)*0.3;
+  ctx.save(); ctx.translate(x,y); ctx.scale(pulse,pulse); ctx.rotate(frame*0.05);
+  ctx.shadowColor='#ffe600'; ctx.shadowBlur=20;
+  ctx.fillStyle='#ffe600';
+  // Star shape
+  ctx.beginPath();
+  for(let i=0;i<5;i++){
+    const a=i*Math.PI*2/5-Math.PI/2;
+    const b=a+Math.PI/5;
+    ctx.lineTo(Math.cos(a)*9,Math.sin(a)*9);
+    ctx.lineTo(Math.cos(b)*4,Math.sin(b)*4);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.shadowBlur=0; ctx.restore();
+}
+
+function drawSnake() {
+  for(let i=snake.length-1;i>=0;i--){
+    const s=snake[i];
+    const x=s.x*CELL, y=s.y*CELL;
+    const isHead=i===0;
+    const prog=1-i/snake.length;
+
+    ctx.save();
+    if(isHead){
+      // Head glow
+      ctx.shadowColor='#39ff14'; ctx.shadowBlur=15;
+      const g=ctx.createRadialGradient(x+CELL/2,y+CELL/2,2,x+CELL/2,y+CELL/2,CELL/2);
+      g.addColorStop(0,'#ffffff'); g.addColorStop(0.4,'#aaffaa'); g.addColorStop(1,'#39ff14');
+      ctx.fillStyle=g;
+    } else {
+      const alpha=0.4+prog*0.6;
+      ctx.fillStyle=`rgba(${Math.floor(57*prog)},${Math.floor(255*prog)},${Math.floor(20*prog)},${alpha})`;
+      ctx.shadowColor='rgba(57,255,20,0.3)'; ctx.shadowBlur=5;
+    }
+    const r=isHead?4:3;
+    ctx.beginPath(); ctx.roundRect(x+1,y+1,CELL-2,CELL-2,r); ctx.fill();
+
+    if(isHead){
+      // Eyes
+      const ex=dir.x,ey=dir.y;
+      ctx.fillStyle='#000'; ctx.shadowBlur=0;
+      if(dir.x!==0){
+        ctx.beginPath();ctx.arc(x+CELL/2+ex*4,y+CELL/2-3,2.5,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(x+CELL/2+ex*4,y+CELL/2+3,2.5,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#39ff14';
+        ctx.beginPath();ctx.arc(x+CELL/2+ex*5,y+CELL/2-3,1,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(x+CELL/2+ex*5,y+CELL/2+3,1,0,Math.PI*2);ctx.fill();
+      } else {
+        ctx.beginPath();ctx.arc(x+CELL/2-3,y+CELL/2+ey*4,2.5,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(x+CELL/2+3,y+CELL/2+ey*4,2.5,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#39ff14';
+        ctx.beginPath();ctx.arc(x+CELL/2-3,y+CELL/2+ey*5,1,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(x+CELL/2+3,y+CELL/2+ey*5,1,0,Math.PI*2);ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+}
+
+function drawParticles() {
+  particles.forEach(p=>{
+    ctx.globalAlpha=p.life/20;
+    ctx.fillStyle=p.color;
+    ctx.shadowColor=p.color; ctx.shadowBlur=8;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.size*(p.life/20),0,Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha=1; ctx.shadowBlur=0;
+}
+
+function draw() {
+  frame++;
+  // Background
+  const bgG=ctx.createLinearGradient(0,0,W,H);
+  bgG.addColorStop(0,'#050510'); bgG.addColorStop(1,'#0a0a20');
+  ctx.fillStyle=bgG; ctx.fillRect(0,0,W,H);
+  drawGrid();
+  drawParticles();
+  drawFood();
+  drawPowerup();
+  drawSnake();
+
+  if(!running&&snake){
+    ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(0,0,W,H);
+  }
+}
+
+document.addEventListener('keydown',e=>{
+  if(!running){if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'].includes(e.key)){init();return;}}
+  if(e.key==='ArrowUp'&&dir.y===0)nextDir={x:0,y:-1};
+  if(e.key==='ArrowDown'&&dir.y===0)nextDir={x:0,y:1};
+  if(e.key==='ArrowLeft'&&dir.x===0)nextDir={x:-1,y:0};
+  if(e.key==='ArrowRight'&&dir.x===0)nextDir={x:1,y:0};
+  if(e.key==='w'&&dir.y===0)nextDir={x:0,y:-1};
+  if(e.key==='s'&&dir.y===0)nextDir={x:0,y:1};
+  if(e.key==='a'&&dir.x===0)nextDir={x:-1,y:0};
+  if(e.key==='d'&&dir.x===0)nextDir={x:1,y:0};
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();
+});
+
+let tx=0,ty=0;
+C.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;if(!running)init();e.preventDefault();},{passive:false});
+C.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;
+  if(Math.abs(dx)>Math.abs(dy)){if(dx>0&&dir.x===0)nextDir={x:1,y:0};else if(dx<0&&dir.x===0)nextDir={x:-1,y:0};}
+  else{if(dy>0&&dir.y===0)nextDir={x:0,y:1};else if(dy<0&&dir.y===0)nextDir={x:0,y:-1};}
+  e.preventDefault();
+},{passive:false});
+
+draw();
+</script>
+</body>
+</html>

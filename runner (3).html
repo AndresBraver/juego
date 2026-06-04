@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Endless Runner</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#050510; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:'Courier New',monospace; color:#fff; overflow:hidden; }
+canvas { display:block; border-radius:8px; box-shadow:0 0 40px rgba(57,255,20,0.3); }
+#ui { display:flex; gap:24px; margin-bottom:8px; }
+.stat { text-align:center; }
+.stat-val { font-size:20px; font-weight:bold; color:#39ff14; text-shadow:0 0 10px #39ff14; }
+.stat-lbl { font-size:9px; color:#555; letter-spacing:2px; }
+#msg { margin-top:8px; font-size:12px; color:#39ff14; min-height:16px; text-align:center; }
+</style>
+</head>
+<body>
+<div id="ui">
+  <div class="stat"><div class="stat-val" id="pts">0</div><div class="stat-lbl">PUNTOS</div></div>
+  <div class="stat"><div class="stat-val" id="hi">0</div><div class="stat-lbl">RECORD</div></div>
+  <div class="stat"><div class="stat-val" id="spd">1x</div><div class="stat-lbl">VELOCIDAD</div></div>
+</div>
+<canvas id="c" width="480" height="260"></canvas>
+<div id="msg">Toca o ESPACIO para empezar</div>
+<script>
+const C = document.getElementById('c');
+const ctx = C.getContext('2d');
+const W=480, H=260, GROUND=190;
+
+let player, obstacles, score, speed, running, raf, frame, particles, stars, mountains, hi, lastAward;
+hi = parseInt(localStorage.getItem('runnerHi')||'0');
+document.getElementById('hi').textContent=hi;
+
+function init(){
+  player={x:70,y:GROUND,w:32,h:44,vy:0,jumps:0,frame:0,running:0,scarf:[]};
+  obstacles=[]; score=0; speed=4; frame=0; particles=[]; lastAward=0;
+  stars=Array.from({length:50},()=>({x:Math.random()*W,y:Math.random()*(GROUND-40),r:Math.random()*1.5+0.3,twinkle:Math.random()*Math.PI*2}));
+  mountains=[
+    {x:0,pts:[{x:0,y:160},{x:60,y:100},{x:120,y:130},{x:200,y:80},{x:280,y:110},{x:360,y:70},{x:440,y:100},{x:480,y:140},{x:480,y:260},{x:0,y:260}]},
+    {x:0,pts:[{x:0,y:175},{x:80,y:130},{x:160,y:155},{x:240,y:120},{x:320,y:145},{x:400,y:115},{x:480,y:140},{x:480,y:260},{x:0,y:260}]}
+  ];
+  document.getElementById('pts').textContent=0;
+  document.getElementById('spd').textContent='1x';
+  document.getElementById('msg').textContent='';
+  running=true;
+  cancelAnimationFrame(raf);
+  raf=requestAnimationFrame(loop);
+}
+
+function jump(){
+  if(!running){init();return;}
+  if(player.jumps<2){
+    player.vy = player.jumps===0 ? -11 : -9;
+    player.jumps++;
+    addParticles(player.x,player.y+player.h,'rgba(57,255,20,0.8)',6);
+  }
+}
+
+function addParticles(x,y,color,n=6){
+  for(let i=0;i<n;i++) particles.push({
+    x,y,vx:(Math.random()-0.5)*6,vy:-Math.random()*4-1,
+    life:20,color,size:Math.random()*4+1
+  });
+}
+
+function loop(){
+  raf=requestAnimationFrame(loop);
+  frame++;
+  if(running) update();
+  draw();
+}
+
+function update(){
+  score+=0.05; speed=4+Math.floor(score/30)*0.3;
+  document.getElementById('pts').textContent=Math.floor(score);
+  document.getElementById('spd').textContent=(1+Math.floor(score/30)*0.07).toFixed(1)+'x';
+  if(score>hi){hi=Math.floor(score);localStorage.setItem('runnerHi',hi);document.getElementById('hi').textContent=hi;}
+
+  const sc=Math.floor(score);
+  if(sc%100===0&&sc>0&&sc!==lastAward){lastAward=sc;try{localStorage.setItem('ugWin',Date.now());}catch(e){}}
+
+  // Player
+  player.vy+=0.55; player.y+=player.vy;
+  if(player.y>=GROUND){player.y=GROUND;player.vy=0;player.jumps=0;}
+  player.frame++;
+  player.running++;
+
+  // Scarf trail
+  player.scarf.push({x:player.x-4,y:player.y+8});
+  if(player.scarf.length>10) player.scarf.shift();
+
+  // Stars twinkle
+  stars.forEach(s=>{s.twinkle+=0.04;});
+
+  // Mountains scroll
+  mountains.forEach(m=>{
+    m.pts.forEach(p=>{if(p.x>0)p.x-=speed*0.15;});
+    if(m.pts[0].x<-W) m.pts.forEach(p=>p.x+=W*2);
+  });
+
+  // Obstacles
+  if(frame%Math.max(55,90-Math.floor(score/12))===0){
+    const h=28+Math.random()*38;
+    const type=Math.random();
+    obstacles.push({x:W+10,y:GROUND+player.h-h,w:type>0.6?22:type>0.3?18:14,h,type:Math.floor(type*3)});
+  }
+  obstacles=obstacles.filter(o=>{
+    o.x-=speed;
+    if(player.x+player.w-8>o.x&&player.x+8<o.x+o.w&&player.y+player.h>o.y){
+      running=false;
+      addParticles(player.x,player.y,'rgba(255,0,85,0.9)',15);
+      document.getElementById('msg').textContent='💀 '+Math.floor(score)+' pts | Toca para reiniciar';
+      return false;
+    }
+    return o.x>-40;
+  });
+
+  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.2;p.life--;return p.life>0;});
+}
+
+function drawSky(){
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#030310');g.addColorStop(0.5,'#080820');g.addColorStop(1,'#0a1a10');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+}
+
+function drawStars(){
+  stars.forEach(s=>{
+    const a=0.3+Math.sin(s.twinkle)*0.3;
+    ctx.fillStyle=`rgba(255,255,255,${a})`;
+    ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();
+  });
+  // Moon
+  ctx.fillStyle='rgba(255,255,200,0.15)';
+  ctx.beginPath();ctx.arc(W-60,40,22,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,255,180,0.4)';
+  ctx.beginPath();ctx.arc(W-60,40,18,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,0.8)';
+  ctx.beginPath();ctx.arc(W-52,36,14,0,Math.PI*2);ctx.fill();
+}
+
+function drawMountains(){
+  // Far mountains
+  ctx.fillStyle='rgba(20,10,50,0.8)';
+  ctx.beginPath();
+  mountains[0].pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+  ctx.closePath(); ctx.fill();
+  // Near mountains
+  ctx.fillStyle='rgba(10,5,30,0.9)';
+  ctx.beginPath();
+  mountains[1].pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+  ctx.closePath(); ctx.fill();
+}
+
+function drawGround(){
+  // Ground glow
+  const g=ctx.createLinearGradient(0,GROUND+player.h,0,H);
+  g.addColorStop(0,'#1a3a1a');g.addColorStop(0.5,'#0d200d');g.addColorStop(1,'#050f05');
+  ctx.fillStyle=g; ctx.fillRect(0,GROUND+player.h,W,H-GROUND-player.h);
+  // Glow line
+  ctx.fillStyle='#39ff14'; ctx.shadowColor='#39ff14'; ctx.shadowBlur=8;
+  ctx.fillRect(0,GROUND+player.h,W,3); ctx.shadowBlur=0;
+  // Grass detail
+  ctx.fillStyle='rgba(57,255,20,0.3)';
+  for(let i=0;i<W;i+=14){
+    const gh=3+Math.sin(i*0.4+frame*0.05)*2;
+    ctx.fillRect(i,GROUND+player.h,2,gh);
+  }
+}
+
+function drawObstacles(){
+  obstacles.forEach(o=>{
+    const colors=[['#ff0055','#ff6680'],['#ff6600','#ffaa44'],['#cc00ff','#ee88ff']];
+    const [c1,c2]=colors[o.type]||colors[0];
+    const g=ctx.createLinearGradient(o.x,0,o.x+o.w,0);
+    g.addColorStop(0,c1);g.addColorStop(0.5,c2);g.addColorStop(1,c1);
+    ctx.fillStyle=g; ctx.shadowColor=c1; ctx.shadowBlur=10;
+    ctx.beginPath();ctx.roundRect(o.x,o.y,o.w,o.h,4);ctx.fill();
+    // Spikes on top
+    ctx.fillStyle=c2;
+    for(let i=0;i<o.w;i+=8){
+      ctx.beginPath();ctx.moveTo(o.x+i,o.y);ctx.lineTo(o.x+i+4,o.y-6);ctx.lineTo(o.x+i+8,o.y);ctx.fill();
+    }
+    ctx.shadowBlur=0;
+  });
+}
+
+function drawPlayer(){
+  const p=player;
+  const onGround=p.y>=GROUND;
+  const running2=Math.floor(p.running/6)%4;
+  ctx.save(); ctx.translate(p.x,p.y);
+
+  // Scarf
+  if(p.scarf.length>2){
+    ctx.strokeStyle='rgba(255,50,50,0.6)'; ctx.lineWidth=3; ctx.lineCap='round';
+    ctx.beginPath();
+    p.scarf.forEach((pt,i)=>{
+      const rx=pt.x-p.x,ry=pt.y-p.y;
+      i===0?ctx.moveTo(rx,ry):ctx.lineTo(rx,ry);
+    });
+    ctx.stroke();
+  }
+
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,0.3)';
+  ctx.beginPath();ctx.ellipse(p.w/2,p.h+2,18,5,0,0,Math.PI*2);ctx.fill();
+
+  // Body glow
+  ctx.shadowColor='#39ff14'; ctx.shadowBlur=12;
+
+  // Body
+  ctx.fillStyle='#00fff5';
+  ctx.beginPath();ctx.roundRect(6,8,20,26,4);ctx.fill();
+
+  // Head
+  ctx.fillStyle='#ffe066';
+  ctx.beginPath();ctx.ellipse(16,6,12,11,0,0,Math.PI*2);ctx.fill();
+
+  // Helmet
+  ctx.fillStyle='#39ff14'; ctx.shadowColor='#39ff14'; ctx.shadowBlur=6;
+  ctx.beginPath();ctx.ellipse(16,-2,12,8,0,0,Math.PI,true);ctx.fill();
+
+  // Visor
+  ctx.fillStyle='rgba(0,200,255,0.7)';
+  ctx.beginPath();ctx.roundRect(8,-2,16,8,3);ctx.fill();
+
+  // Arms
+  const armSwing=onGround?Math.sin(p.running*0.35)*0.5:0;
+  ctx.fillStyle='#00ccdd'; ctx.shadowBlur=0;
+  ctx.save();ctx.translate(6,16);ctx.rotate(-armSwing);ctx.beginPath();ctx.roundRect(-4,0,7,14,3);ctx.fill();ctx.restore();
+  ctx.save();ctx.translate(26,16);ctx.rotate(armSwing);ctx.beginPath();ctx.roundRect(-3,0,7,14,3);ctx.fill();ctx.restore();
+
+  // Legs
+  const legSwing=onGround?Math.sin(p.running*0.35)*6:0;
+  ctx.fillStyle='#006688';
+  ctx.save();ctx.translate(9,34);ctx.rotate(legSwing*0.05);ctx.beginPath();ctx.roundRect(-4,0,9,16,3);ctx.fill();ctx.restore();
+  ctx.save();ctx.translate(18,34);ctx.rotate(-legSwing*0.05);ctx.beginPath();ctx.roundRect(-4,0,9,16,3);ctx.fill();ctx.restore();
+
+  // Shoes
+  ctx.fillStyle='#003344';
+  ctx.beginPath();ctx.roundRect(5,48,12,6,3);ctx.fill();
+  ctx.beginPath();ctx.roundRect(15,48,12,6,3);ctx.fill();
+
+  ctx.shadowBlur=0;
+  ctx.restore();
+
+  // Double jump indicator
+  if(p.jumps===1){
+    ctx.strokeStyle='rgba(57,255,20,0.4)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.ellipse(p.x+16,p.y+p.h/2,24,16,0,0,Math.PI*2);ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawParticles2(){
+  particles.forEach(p=>{
+    ctx.globalAlpha=p.life/20;
+    ctx.fillStyle=p.color; ctx.shadowColor=p.color; ctx.shadowBlur=8;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.size*(p.life/20),0,Math.PI*2);ctx.fill();
+  });
+  ctx.globalAlpha=1; ctx.shadowBlur=0;
+}
+
+function draw(){
+  drawSky();
+  drawStars();
+  drawMountains();
+  drawGround();
+  drawObstacles();
+  drawParticles2();
+  if(player) drawPlayer();
+
+  // Score display
+  ctx.fillStyle='rgba(0,0,0,0.4)';
+  ctx.beginPath();ctx.roundRect(10,10,120,32,8);ctx.fill();
+  ctx.fillStyle='#39ff14'; ctx.font='bold 14px Courier New';
+  ctx.shadowColor='#39ff14'; ctx.shadowBlur=8;
+  ctx.fillText('⚡ '+Math.floor(score||0),18,31);
+  ctx.shadowBlur=0;
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key===' '||e.key==='ArrowUp'){jump();e.preventDefault();}
+});
+C.addEventListener('click',jump);
+C.addEventListener('touchstart',e=>{jump();e.preventDefault();},{passive:false});
+
+draw();
+</script>
+</body>
+</html>
