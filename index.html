@@ -274,10 +274,8 @@ const SHOP = {
   ],
   extras: [
     {id:'hint_pack',  name:'Pack Pistas',  icon:'💡', price:8,  type:'hint',  val:3,  desc:'3 pistas (revelar letra)'},
-    {id:'life_extra', name:'Vida Extra',   icon:'❤️', price:6,  type:'life',  val:1,  desc:'+1 vida en crucigrama'},
-    {id:'hint_big',   name:'Mega Pistas',  icon:'🔦', price:15, type:'hint',  val:10, desc:'10 pistas'},
-    {id:'life_big',   name:'Vidas x3',     icon:'💖', price:12, type:'life',  val:3,  desc:'+3 vidas en crucigrama'},
-  ]
+      {id:'hint_big',   name:'Mega Pistas',  icon:'🔦', price:15, type:'hint',  val:10, desc:'10 pistas'},
+    ]
 };
 
 // ════════════════════════════════════════
@@ -395,8 +393,17 @@ function updatePoints() {
 // WIN / POINTS
 // ════════════════════════════════════════
 function awardPoints(n=3) {
-  if(!currentUser||!currentUD)return;
-  currentUD.points+=n; saveUD(); updatePoints();
+  if(!currentUser||!currentUD){
+    // Show toast even without login
+    const t=document.getElementById('winToast');
+    t.textContent='🏆 ¡Ganaste! Inicia sesión para guardar puntos';
+    t.style.display='block';
+    setTimeout(()=>t.style.display='none',3000);
+    return;
+  }
+  currentUD.points+=n;
+  updatePoints();
+  saveUD();
   const t=document.getElementById('winToast');
   t.textContent='🏆 ¡Ganaste! +'+n+' ⭐';
   t.style.display='block';
@@ -540,7 +547,9 @@ function saveGame(){
 // ════════════════════════════════════════
 // Listen for win messages from games
 window.addEventListener('message', e => {
-  if(e.data&&e.data.type==='ugWin') awardPoints(e.data.points||3);
+  if(e.data&&e.data.type==='ugWin'){
+    awardPoints(e.data.points||3);
+  }
 });
 
 document.addEventListener('keydown',e=>{
