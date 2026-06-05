@@ -535,7 +535,15 @@ window.ugWin=()=>awardPoints(2);
 // SHOP
 // ════════════════════════════════════════
 let shopCurrentTab='colors';
-function openShop() { updatePoints(); renderShop(); document.getElementById('shopModal').classList.add('open'); }
+function openShop() {
+  try {
+    if(!currentUser||!currentUD)return;
+    if(!currentUD.equipped)currentUD.equipped={};
+    updatePoints();
+    renderShop();
+    document.getElementById('shopModal').classList.add('open');
+  } catch(e){ console.error('Shop error:',e); alert('Error: '+e.message); }
+}
 function closeShop() { document.getElementById('shopModal').classList.remove('open'); }
 function shopTab(tab,btn) {
   shopCurrentTab=tab;
@@ -546,6 +554,8 @@ function shopTab(tab,btn) {
 function renderShop() {
   if(!currentUser||!currentUD)return;
   const ud=currentUD;
+  if(!ud.equipped)ud.equipped={};
+  if(!ud.owned)ud.owned=[];
   document.getElementById('shopPoints').textContent='⭐ '+ud.points+' puntos';
   const allShop={...SHOP,avatars:[...SHOP.avatars,...(SHOP.avatars2||[])]};
   const items=allShop[shopCurrentTab]||[];
