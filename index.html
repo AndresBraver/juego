@@ -201,6 +201,13 @@ header { position:relative; z-index:10; padding:14px 20px; display:flex; align-i
     <div class="shop-tabs">
       <button class="shop-tab active" onclick="shopTab('colors',this)">🎨 COLORES</button>
       <button class="shop-tab" onclick="shopTab('bg',this)">🌌 FONDOS</button>
+      <button class="shop-tab" onclick="shopTab('titles',this)">👑 TÍTULOS</button>
+      <button class="shop-tab" onclick="shopTab('avatars',this)">🤖 AVATARES</button>
+      <button class="shop-tab" onclick="shopTab('effects',this)">✨ EFECTOS</button>
+      <button class="shop-tab" onclick="shopTab('sounds',this)">🎵 SONIDOS</button>
+      <button class="shop-tab" onclick="shopTab('phrases',this)">💬 FRASES</button>
+      <button class="shop-tab" onclick="shopTab('borders',this)">🖼️ MARCOS</button>
+      <button class="shop-tab" onclick="shopTab('powerups',this)">⚡ POWER-UPS</button>
     </div>
     <div class="shop-grid" id="shopGrid"></div>
   </div>
@@ -494,7 +501,8 @@ function renderShop() {
   if(!currentUser||!currentUD)return;
   const ud=currentUD;
   document.getElementById('shopPoints').textContent='⭐ '+ud.points+' puntos';
-  const items=(shopCurrentTab==='avatars'?[...SHOP.avatars,...(SHOP.avatars2||[])]:SHOP[shopCurrentTab])||[];
+  const allShop={...SHOP,avatars:[...SHOP.avatars,...(SHOP.avatars2||[])]};
+  const items=allShop[shopCurrentTab]||[];
   document.getElementById('shopGrid').innerHTML=items.map(item=>{
     const owned=ud.owned.includes(item.id);
     const equipped=ud.equipped&&(ud.equipped.color===item.id||ud.equipped.bg===item.id||ud.equipped.title===item.id||ud.equipped.avatar===item.id||ud.equipped.effect===item.id||ud.equipped.sound===item.id||ud.equipped.phrase===item.id||ud.equipped.border===item.id);
