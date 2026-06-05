@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pong Multijugador</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#050510; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:'Courier New',monospace; color:#fff; overflow:hidden; }
+h1 { color:#ffe600; font-size:20px; margin-bottom:6px; text-shadow:0 0 15px #ffe600; }
+canvas { display:block; border-radius:8px; box-shadow:0 0 40px rgba(255,230,0,0.3); }
+#msg { margin-top:8px; font-size:13px; color:#ffe600; min-height:18px; text-align:center; max-width:480px; }
+#btns { display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; justify-content:center; }
+.btn { border:none; padding:8px 16px; font-size:12px; font-family:'Courier New',monospace; font-weight:bold; border-radius:6px; cursor:pointer; }
+#createBtn { background:linear-gradient(135deg,#ffe600,#ff9900); color:#000; }
+#joinBtn   { background:linear-gradient(135deg,#00fff5,#0088ff); color:#000; }
+#roomCode  { background:#1a1a3e; border:1px solid #333; color:#fff; padding:8px 12px; font-size:13px; font-family:'Courier New',monospace; border-radius:6px; width:120px; text-align:center; letter-spacing:3px; }
+#hint { font-size:10px; color:#444; margin-top:4px; text-align:center; }
+#status { font-size:11px; color:#aaa; margin-top:3px; text-align:center; min-height:16px; }
+#roomDisplay { font-size:18px; color:#ffe600; font-weight:bold; letter-spacing:4px; min-height:24px; text-align:center; margin-top:4px; }
+</style>
+</head>
+<body>
+<h1>🏓 PONG MULTIJUGADOR</h1>
+<div id="roomDisplay"></div>
+<div id="status">Crea o únete a una sala</div>
+<canvas id="c" width="480" height="320"></canvas>
+<div id="msg"></div>
+<div id="btns">
+  <button class="btn" id="createBtn" onclick="createRoom()">🎮 CREAR SALA</button>
+  <input type="text" id="roomCode" placeholder="CÓDIGO" maxlength="4">
+  <button class="btn" id="joinBtn" onclick="joinRoom()">🔗 UNIRSE</button>
+</div>
+<div id="hint">W/S = mover | Primero en 7 puntos gana</div>
+
+<script>
+const C = document.getElementById('c');
+const ctx = C.getContext('2d');
+const W = 480, H = 320;
+const PAD_H = 70, PAD_W = 12, BALL_R = 8;
+
+const SB_URL = 'https://rweslfsfimdodcudgijw.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3ZXNsZnNmaW1kb2RjdWRnaWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1NzI0MjQsImV4cCI6MjA5NjE0ODQyNH0.0oWHME0-GqLnHtZv5wFLHcLfuoesK4gB7Re-dc5hCV4';
+
+const PLAYER_COLOR = (()=>{ try{return localStorage.getItem('ugColor')||'#00fff5';}catch(e){return '#00fff5';} })();
+
+let roomId = null;
+let playerNum = 0; // 1 or 2
+let keys = {};
+let gameState = null;
+let pollInterval = null;
+let lastUpdate = 0;
+let frame = 0;
+let animId;
+
+// Local physics (host only)
+let bvx = 4, bvy = 3;
+let isHost = false;
+
+async function sbFetch(path, opts) {
+  opts = opts || {};
+  const res = await fetch(SB_URL + '/rest/v1/' + path, {
+    method: opts.method || 'GET',
+    headers: {
+      'apikey': SB_KEY,
+      'Authorization': 'Bearer ' + SB_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': opts.prefer || ''
+    },
+    body: opts.body || undefined
+  });
+  try { return await res.json(); } catch(e) { return null; }
+}
+
+function genCode() {
+  return Math.random().toString(36).substring(2,6).toUpperCase();
+}
+
+async function createRoom() {
+  const code = genCode();
+  roomId = code;
+  playerNum = 1;
+  isHost = true;
+
+  const res = await sbFetch('pong_rooms', {
+    method: 'POST',
+    prefer: 'return=representation',
+    body: JSON.stringify({
+      id: code,
+      player1: 'P1',
+      player2: null,
+      ball_x: W/2, ball_y: H/2,
+      p1_y: H/2-PAD_H/2, p2_y: H/2-PAD_H/2,
+      score1: 0, score2: 0,
+      state: 'waiting',
+      updated_at: new Date().toISOString()
+    })
+  });
+
+  document.getElementById('roomDisplay').textContent = '🔑 SALA: ' + code;
+  document.getElementById('status').textContent = '⏳ Esperando jugador 2...';
+  document.getElementById('btns').style.display = 'none';
+  setMsg('Comparte el código ' + code + ' con tu amigo');
+
+  // Init game state locally
+  gameState = { ball_x:W/2, ball_y:H/2, p1_y:H/2-PAD_H/2, p2_y:H/2-PAD_H/2, score1:0, score2:0, state:'waiting' };
+  bvx = 4; bvy = 3;
+
+  // Poll for player 2
+  pollInterval = setInterval(pollRoom, 800);
+  animId = requestAnimationFrame(loop);
+}
+
+async function joinRoom() {
+  const code = document.getElementById('roomCode').value.trim().toUpperCase();
+  if(!code || code.length < 4) { setMsg('⚠️ Ingresa un código de 4 letras'); return; }
+
+  const data = await sbFetch('pong_rooms?id=eq.' + code + '&select=*');
+  if(!data || !data.length) { setMsg('❌ Sala no encontrada'); return; }
+  if(data[0].state !== 'waiting') { setMsg('❌ Sala llena o partida en curso'); return; }
+
+  roomId = code;
+  playerNum = 2;
+  isHost = false;
+
+  await sbFetch('pong_rooms?id=eq.' + code, {
+    method: 'PATCH',
+    prefer: 'return=minimal',
+    body: JSON.stringify({ player2: 'P2', state: 'playing', updated_at: new Date().toISOString() })
+  });
+
+  document.getElementById('roomDisplay').textContent = '🔑 SALA: ' + code;
+  document.getElementById('status').textContent = '✅ ¡Conectado! Eres Jugador 2';
+  document.getElementById('btns').style.display = 'none';
+  setMsg('¡Partida iniciada! Usa W/S para mover');
+
+  gameState = { ...data[0], state:'playing' };
+  pollInterval = setInterval(pollRoom, 50);
+  animId = requestAnimationFrame(loop);
+}
+
+async function pollRoom() {
+  if(!roomId) return;
+  const data = await sbFetch('pong_rooms?id=eq.' + roomId + '&select=*');
+  if(!data || !data.length) return;
+  const d = data[0];
+
+  // Check if player 2 joined (host waiting)
+  if(isHost && gameState && gameState.state === 'waiting' && d.state === 'playing') {
+    gameState.state = 'playing';
+    document.getElementById('status').textContent = '✅ ¡Jugador 2 conectado!';
+    setMsg('¡Partida iniciada! Usa W/S para mover');
+    clearInterval(pollInterval);
+    pollInterval = setInterval(pollRoom, 50);
+    return;
+  }
+
+  if(!isHost) {
+    // Player 2: read state from DB
+    gameState = d;
+  }
+}
+
+// Host sends state to DB
+async function pushState() {
+  if(!roomId || !isHost || !gameState) return;
+  await sbFetch('pong_rooms?id=eq.' + roomId, {
+    method: 'PATCH',
+    prefer: 'return=minimal',
+    body: JSON.stringify({
+      ball_x: Math.round(gameState.ball_x),
+      ball_y: Math.round(gameState.ball_y),
+      p1_y: Math.round(gameState.p1_y),
+      p2_y: Math.round(gameState.p2_y),
+      score1: gameState.score1,
+      score2: gameState.score2,
+      state: gameState.state,
+      updated_at: new Date().toISOString()
+    })
+  });
+}
+
+// Player 2 sends paddle position
+async function pushPaddle(y) {
+  if(!roomId || isHost) return;
+  await sbFetch('pong_rooms?id=eq.' + roomId, {
+    method: 'PATCH',
+    prefer: 'return=minimal',
+    body: JSON.stringify({ p2_y: Math.round(y), updated_at: new Date().toISOString() })
+  });
+}
+
+let pushTimer = 0;
+let p2PushTimer = 0;
+
+function loop() {
+  animId = requestAnimationFrame(loop);
+  frame++;
+  if(gameState && gameState.state === 'playing') {
+    update();
+  }
+  draw();
+}
+
+function update() {
+  const spd = 5;
+
+  if(isHost) {
+    // Host controls P1
+    if(keys['w']||keys['W']) gameState.p1_y = Math.max(0, gameState.p1_y - spd);
+    if(keys['s']||keys['S']) gameState.p1_y = Math.min(H-PAD_H, gameState.p1_y + spd);
+
+    // Physics
+    gameState.ball_x += bvx;
+    gameState.ball_y += bvy;
+
+    // Walls
+    if(gameState.ball_y - BALL_R <= 0) { gameState.ball_y = BALL_R; bvy = Math.abs(bvy); }
+    if(gameState.ball_y + BALL_R >= H) { gameState.ball_y = H-BALL_R; bvy = -Math.abs(bvy); }
+
+    // P1 paddle
+    if(gameState.ball_x - BALL_R <= 22+PAD_W && gameState.ball_x >= 22 &&
+       gameState.ball_y >= gameState.p1_y && gameState.ball_y <= gameState.p1_y+PAD_H && bvx < 0) {
+      bvx = Math.abs(bvx)*1.05;
+      bvy = ((gameState.ball_y-(gameState.p1_y+PAD_H/2))/(PAD_H/2))*5;
+    }
+    // P2 paddle
+    if(gameState.ball_x + BALL_R >= W-22-PAD_W && gameState.ball_x <= W-22 &&
+       gameState.ball_y >= gameState.p2_y && gameState.ball_y <= gameState.p2_y+PAD_H && bvx > 0) {
+      bvx = -Math.abs(bvx)*1.05;
+      bvy = ((gameState.ball_y-(gameState.p2_y+PAD_H/2))/(PAD_H/2))*5;
+    }
+
+    // Speed limit
+    const spd2 = Math.sqrt(bvx*bvx+bvy*bvy);
+    if(spd2 > 12) { bvx=bvx/spd2*12; bvy=bvy/spd2*12; }
+
+    // Score
+    if(gameState.ball_x < 0) {
+      gameState.score2++;
+      resetBall(-1);
+      checkWin();
+    }
+    if(gameState.ball_x > W) {
+      gameState.score1++;
+      resetBall(1);
+      checkWin();
+    }
+
+    // Push to DB every 3 frames
+    pushTimer++;
+    if(pushTimer >= 3) { pushTimer = 0; pushState(); }
+
+  } else {
+    // Player 2 controls
+    if(keys['w']||keys['W']) gameState.p2_y = Math.max(0, gameState.p2_y - spd);
+    if(keys['s']||keys['S']) gameState.p2_y = Math.min(H-PAD_H, gameState.p2_y + spd);
+
+    // Push P2 paddle every 2 frames
+    p2PushTimer++;
+    if(p2PushTimer >= 2) { p2PushTimer = 0; pushPaddle(gameState.p2_y); }
+  }
+}
+
+function resetBall(dir) {
+  gameState.ball_x = W/2; gameState.ball_y = H/2;
+  bvx = 4*dir; bvy = 3*(Math.random()>0.5?1:-1);
+}
+
+function checkWin() {
+  if(gameState.score1 >= 7) {
+    gameState.state = 'done';
+    setMsg('🏆 ¡JUGADOR 1 GANA!');
+    window.parent.postMessage('ugWin','*');
+  }
+  if(gameState.score2 >= 7) {
+    gameState.state = 'done';
+    setMsg(playerNum===2?'🏆 ¡GANASTE!':'💀 Jugador 2 gana');
+    if(playerNum===2) window.parent.postMessage('ugWin','*');
+  }
+}
+
+function drawPaddle(x, y, color) {
+  const g = ctx.createLinearGradient(x,y,x+PAD_W,y+PAD_H);
+  g.addColorStop(0,color); g.addColorStop(0.5,'#ffffff44'); g.addColorStop(1,color);
+  ctx.fillStyle=g; ctx.shadowColor=color; ctx.shadowBlur=20;
+  ctx.beginPath(); ctx.roundRect(x,y,PAD_W,PAD_H,6); ctx.fill();
+  ctx.shadowBlur=0;
+}
+
+function draw() {
+  const bg = ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#020208'); bg.addColorStop(1,'#080818');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+  // Center line
+  ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.lineWidth=2; ctx.setLineDash([10,10]);
+  ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke(); ctx.setLineDash([]);
+
+  if(!gameState) {
+    ctx.fillStyle='#333'; ctx.font='14px Courier New'; ctx.textAlign='center';
+    ctx.fillText('Crea o únete a una sala',W/2,H/2); ctx.textAlign='left';
+    return;
+  }
+
+  const gs = gameState;
+
+  // Scores
+  ctx.fillStyle=`rgba(${playerNum===1?'0,255,245':'255,0,85'},0.15)`;
+  ctx.font='bold 80px Courier New'; ctx.textAlign='center';
+  ctx.fillText(gs.score1, W/4, H/2+30);
+  ctx.fillStyle=`rgba(${playerNum===2?'0,255,245':'255,0,85'},0.15)`;
+  ctx.fillText(gs.score2, W*3/4, H/2+30);
+
+  ctx.fillStyle=PLAYER_COLOR; ctx.font='bold 32px Courier New';
+  ctx.fillText(gs.score1, W/4, 60);
+  ctx.fillStyle=playerNum===2?PLAYER_COLOR:'#ff0055';
+  ctx.fillText(gs.score2, W*3/4, 60);
+  ctx.textAlign='left';
+
+  if(gs.state === 'waiting') {
+    ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#ffe600'; ctx.font='14px Courier New'; ctx.textAlign='center';
+    ctx.fillText('⏳ Esperando jugador 2...', W/2, H/2); ctx.textAlign='left';
+    return;
+  }
+
+  // Paddles
+  drawPaddle(22, gs.p1_y, playerNum===1?PLAYER_COLOR:'#ff0055');
+  drawPaddle(W-22-PAD_W, gs.p2_y, playerNum===2?PLAYER_COLOR:'#ff0055');
+
+  // Ball
+  const ballG = ctx.createRadialGradient(gs.ball_x-2,gs.ball_y-2,1,gs.ball_x,gs.ball_y,BALL_R);
+  ballG.addColorStop(0,'#ffffff'); ballG.addColorStop(0.5,'#ffee88'); ballG.addColorStop(1,'#ffe600');
+  ctx.fillStyle=ballG; ctx.shadowColor='#ffe600'; ctx.shadowBlur=20;
+  ctx.beginPath(); ctx.arc(gs.ball_x,gs.ball_y,BALL_R,0,Math.PI*2); ctx.fill();
+  ctx.shadowBlur=0;
+
+  // Player indicator
+  ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='9px Courier New'; ctx.textAlign='center';
+  ctx.fillText(playerNum===1?'TÚ':'', W/4, H-8);
+  ctx.fillText(playerNum===2?'TÚ':'', W*3/4, H-8);
+  ctx.textAlign='left';
+}
+
+function setMsg(t) { document.getElementById('msg').textContent = t; }
+
+document.addEventListener('keydown', e=>{ keys[e.key]=true; });
+document.addEventListener('keyup',   e=>{ keys[e.key]=false; });
+
+// Touch controls
+let ty0=0;
+C.addEventListener('touchstart', e=>{ ty0=e.touches[0].clientY; e.preventDefault(); },{passive:false});
+C.addEventListener('touchmove',  e=>{ const dy=e.touches[0].clientY-ty0; if(dy>10)keys['s']=true; else if(dy<-10)keys['w']=true; e.preventDefault(); },{passive:false});
+C.addEventListener('touchend',   e=>{ keys['w']=keys['s']=false; e.preventDefault(); },{passive:false});
+
+draw();
+</script>
+</body>
+</html>
