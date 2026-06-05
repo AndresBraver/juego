@@ -78,7 +78,7 @@ function tick() {
   if(head.x===food.x&&head.y===food.y){
     score+=10; document.getElementById('pts').textContent=score;
     if(score>hi){hi=score;localStorage.setItem('snakeHi',hi);document.getElementById('hi').textContent=hi;}
-    if(score===100||score===200||score===300) try{localStorage.setItem('ugWin',Date.now());}catch(e){}
+    if(score===100||score===200||score===300) try{localStorage.setItem('ugWin',Date.now());}catch(e){} window.parent.postMessage('ugWin','*');
     addParticles(food.x,food.y,'#ff0055',8);
     placeFood();
   } else if(powerup&&head.x===powerup.x&&head.y===powerup.y){

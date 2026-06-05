@@ -99,7 +99,7 @@ function nextShot(){
   if(shots<=0){
     const won=goals>=3;
     document.getElementById('msg').textContent=won?'🏆 ¡GANASTE! '+goals+'/5 goles':'💀 Perdiste — '+goals+'/5 goles';
-    if(won)try{localStorage.setItem('ugWin',Date.now());}catch(e){}
+    if(won)try{localStorage.setItem('ugWin',Date.now());}catch(e){} window.parent.postMessage('ugWin','*');
     return;
   }
   ball={x:W/2,y:H-50,r:18,vx:0,vy:0,moving:false,trail:[]};

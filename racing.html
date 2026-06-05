@@ -71,7 +71,7 @@ function update(){
 
   // Award points
   const sc=Math.floor(score);
-  if(sc%100===0&&sc>0&&sc!==lastAward){lastAward=sc;try{localStorage.setItem('ugWin',Date.now());}catch(e){}}
+  if(sc%100===0&&sc>0&&sc!==lastAward){lastAward=sc;try{localStorage.setItem('ugWin',Date.now());}catch(e){} window.parent.postMessage('ugWin','*');}
 
   if((keys['ArrowLeft']||keys['a']||keys['A'])&&player.lane>0&&moveCd===0){
     player.lane--;player.x=LANES[player.lane];moveCd=10;

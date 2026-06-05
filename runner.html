@@ -78,7 +78,7 @@ function update(){
   if(score>hi){hi=Math.floor(score);localStorage.setItem('runnerHi',hi);document.getElementById('hi').textContent=hi;}
 
   const sc=Math.floor(score);
-  if(sc%100===0&&sc>0&&sc!==lastAward){lastAward=sc;try{localStorage.setItem('ugWin',Date.now());}catch(e){}}
+  if(sc%100===0&&sc>0&&sc!==lastAward){lastAward=sc;try{localStorage.setItem('ugWin',Date.now());}catch(e){} window.parent.postMessage('ugWin','*');}
 
   // Player
   player.vy+=0.55; player.y+=player.vy;

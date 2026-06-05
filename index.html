@@ -541,7 +541,12 @@ function saveGame(){
 // ════════════════════════════════════════
 // KEYBOARD
 // ════════════════════════════════════════
-// Poll localStorage for win signal from games
+// Listen for win messages from games via postMessage
+window.addEventListener('message', e => {
+  if(e.data === 'ugWin') awardPoints(3);
+});
+
+// Also poll localStorage as fallback (same domain)
 let lastWinCheck = 0;
 setInterval(() => {
   try {

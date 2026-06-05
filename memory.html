@@ -86,7 +86,7 @@ function flip(card,idx){
         if(matched===8){
           clearInterval(timerInt);
           document.getElementById('msg').textContent=`🏆 ¡GANASTE! ${moves} movimientos en ${seconds}s`;
-          try{localStorage.setItem('ugWin',Date.now());}catch(e){}
+          try{localStorage.setItem('ugWin',Date.now());}catch(e){} window.parent.postMessage('ugWin','*');
         }
       },300);
     } else {

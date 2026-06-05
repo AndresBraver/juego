@@ -71,8 +71,8 @@ function update(){
   if(ball.x<0){score2++;addParticles(0,ball.y,'#ff0055',12);resetBall(1);}
   if(ball.x>W){score1++;addParticles(W,ball.y,'#00fff5',12);resetBall(-1);}
 
-  if(score1>=7){running=false;document.getElementById('msg').textContent='🏆 ¡JUGADOR 1 GANA!';try{localStorage.setItem('ugWin',Date.now());}catch(e){}}
-  if(score2>=7){running=false;document.getElementById('msg').textContent='🏆 ¡JUGADOR 2 GANA!';try{localStorage.setItem('ugWin',Date.now());}catch(e){}}
+  if(score1>=7){running=false;document.getElementById('msg').textContent='🏆 ¡JUGADOR 1 GANA!';try{localStorage.setItem('ugWin',Date.now());}catch(e){} window.parent.postMessage('ugWin','*');}
+  if(score2>=7){running=false;document.getElementById('msg').textContent='🏆 ¡JUGADOR 2 GANA!';try{localStorage.setItem('ugWin',Date.now());}catch(e){} window.parent.postMessage('ugWin','*');}
 
   particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.1;p.life--;return p.life>0;});
 }

@@ -58,7 +58,7 @@ function startGame(){
     if(timeLeft<=0){
       running=false;clearAllIntervals();
       document.getElementById('msg').textContent=`🏆 FIN — ${score} pts | Combo max: x${maxCombo}`;
-      try{localStorage.setItem('ugWin',Date.now());}catch(e){}
+      try{localStorage.setItem('ugWin',Date.now());}catch(e){} window.parent.postMessage('ugWin','*');
       holes.forEach(h=>hideMole(h));
     }
   },1000));
