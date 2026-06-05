@@ -295,6 +295,16 @@ const SHOP = {
     {id:'title_fire',   name:'🔥 En llamas',   icon:'🔥', price:25, type:'title', val:'🔥 En llamas'},
     {id:'title_galaxy', name:'🌌 Galáctico',   icon:'🌌', price:35, type:'title', val:'🌌 Galáctico'},
   ],
+  avatars: [
+    {id:'av_robot',  name:'Robot',    icon:'🤖', price:5,  type:'avatar', val:'🤖'},
+    {id:'av_alien',  name:'Alien',    icon:'👾', price:5,  type:'avatar', val:'👾'},
+    {id:'av_ninja',  name:'Ninja',    icon:'🥷', price:8,  type:'avatar', val:'🥷'},
+    {id:'av_dragon', name:'Dragón',   icon:'🐉', price:10, type:'avatar', val:'🐉'},
+    {id:'av_skull',  name:'Calavera', icon:'💀', price:12, type:'avatar', val:'💀'},
+    {id:'av_crown',  name:'Corona',   icon:'👑', price:20, type:'avatar', val:'👑'},
+    {id:'av_fire',   name:'Fuego',    icon:'🔥', price:15, type:'avatar', val:'🔥'},
+    {id:'av_star',   name:'Estrella', icon:'⭐', price:10, type:'avatar', val:'⭐'},
+  ],
   avatars2: [
     {id:'av2_cat',    name:'Gato',    icon:'🐱', price:8,  type:'avatar', val:'🐱'},
     {id:'av2_wolf',   name:'Lobo',    icon:'🐺', price:10, type:'avatar', val:'🐺'},
@@ -557,7 +567,8 @@ function renderShop() {
   if(!ud.equipped)ud.equipped={};
   if(!ud.owned)ud.owned=[];
   document.getElementById('shopPoints').textContent='⭐ '+ud.points+' puntos';
-  const allShop={...SHOP,avatars:[...SHOP.avatars,...(SHOP.avatars2||[])]};
+  const allAvatars=[...(SHOP.avatars||[]),...(SHOP.avatars2||[])];
+  const allShop={...SHOP,avatars:allAvatars};
   const items=allShop[shopCurrentTab]||[];
   document.getElementById('shopGrid').innerHTML=items.map(item=>{
     const owned=ud.owned.includes(item.id);
