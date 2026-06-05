@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tetris</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#050510; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; font-family:'Courier New',monospace; color:#fff; padding:10px; }
+h1 { color:#cc00ff; font-size:24px; margin-bottom:6px; text-shadow:0 0 15px #cc00ff; letter-spacing:4px; }
+#wrap { display:flex; gap:14px; align-items:flex-start; }
+canvas { border:2px solid #cc00ff; box-shadow:0 0 30px rgba(204,0,255,0.4); border-radius:6px; }
+#side { display:flex; flex-direction:column; gap:10px; min-width:100px; }
+.panel { background:linear-gradient(135deg,#0d0d2e,#1a1a4e); border:1px solid #2a2a5e; border-radius:10px; padding:12px; font-size:12px; color:#aaa; }
+.panel-title { font-size:9px; color:#555; letter-spacing:2px; margin-bottom:6px; }
+.panel-val { font-size:20px; font-weight:bold; color:#cc00ff; text-shadow:0 0 10px #cc00ff; }
+#nextCanvas { border:1px solid #2a2a5e; border-radius:6px; margin-top:6px; }
+#msg { margin-top:10px; font-size:13px; color:#cc00ff; min-height:20px; text-align:center; }
+button { margin-top:8px; background:linear-gradient(135deg,#cc00ff,#6600aa); color:#fff; border:none; padding:10px 28px; font-size:13px; font-family:'Courier New',monospace; font-weight:bold; border-radius:8px; cursor:pointer; box-shadow:0 0 20px rgba(204,0,255,0.3); }
+#hint { margin-top:4px; font-size:10px; color:#444; text-align:center; }
+</style>
+</head>
+<body>
+<h1>🧩 TETRIS</h1>
+<div id="wrap">
+  <canvas id="c" width="200" height="400"></canvas>
+  <div id="side">
+    <div class="panel"><div class="panel-title">SIGUIENTE</div><canvas id="nextCanvas" width="80" height="80"></canvas></div>
+    <div class="panel"><div class="panel-title">PUNTOS</div><div class="panel-val" id="pts">0</div></div>
+    <div class="panel"><div class="panel-title">NIVEL</div><div class="panel-val" id="lvl">1</div></div>
+    <div class="panel"><div class="panel-title">LÍNEAS</div><div class="panel-val" id="lines">0</div></div>
+  </div>
+</div>
+<div id="msg">Presiona INICIAR</div>
+<button onclick="startGame()">INICIAR</button>
+<div id="hint">← → Mover | ↑ Rotar | ↓ Bajar | Espacio: Caída</div>
+<script>
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+const nc=document.getElementById('nextCanvas'),nctx=nc.getContext('2d');
+const COLS=10,ROWS=20,SZ=20;
+const PIECES=[
+  {shape:[[1,1,1,1]],color:'#00fff5'},
+  {shape:[[1,1],[1,1]],color:'#ffe600'},
+  {shape:[[1,1,1],[0,1,0]],color:'#cc00ff'},
+  {shape:[[1,1,1],[1,0,0]],color:'#ff9900'},
+  {shape:[[1,1,1],[0,0,1]],color:'#0055ff'},
+  {shape:[[1,1,0],[0,1,1]],color:'#39ff14'},
+  {shape:[[0,1,1],[1,1,0]],color:'#ff0055'},
+];
+let board,current,next,score,level,lines,running,timer,interval,particles;
+
+function startGame(){
+  board=Array(ROWS).fill(null).map(()=>Array(COLS).fill(0));
+  score=0;level=1;lines=0;particles=[];
+  document.getElementById('pts').textContent=0;
+  document.getElementById('lvl').textContent=1;
+  document.getElementById('lines').textContent=0;
+  document.getElementById('msg').textContent='';
+  next=randomPiece();spawn();running=true;
+  clearInterval(interval);
+  interval=setInterval(drop,800);
+}
+
+function randomPiece(){
+  const p=PIECES[Math.floor(Math.random()*PIECES.length)];
+  return{shape:p.shape.map(r=>[...r]),color:p.color,x:Math.floor(COLS/2)-Math.floor(p.shape[0].length/2),y:0};
+}
+
+function spawn(){
+  current=next;current.x=Math.floor(COLS/2)-Math.floor(current.shape[0].length/2);current.y=0;
+  next=randomPiece();drawNext();
+  if(collide(current)){running=false;clearInterval(interval);document.getElementById('msg').textContent='💀 GAME OVER — '+score+' pts';}
+}
+
+function collide(p,dx=0,dy=0,shape=p.shape){
+  for(let r=0;r<shape.length;r++)for(let c=0;c<shape[r].length;c++){
+    if(!shape[r][c])continue;
+    const nx=p.x+c+dx,ny=p.y+r+dy;
+    if(nx<0||nx>=COLS||ny>=ROWS||ny>=0&&board[ny][nx])return true;
+  }return false;
+}
+
+function rotate(shape){return shape[0].map((_,i)=>shape.map(r=>r[i]).reverse());}
+
+function drop(){
+  if(!running)return;
+  if(!collide(current,0,1))current.y++;
+  else{lock();clearLines();spawn();}
+  draw();
+}
+
+function lock(){
+  current.shape.forEach((row,r)=>row.forEach((v,c)=>{
+    if(v)board[current.y+r][current.x+c]=current.color;
+  }));
+  // Add particles
+  current.shape.forEach((row,r)=>row.forEach((v,c)=>{
+    if(v){
+      for(let i=0;i<2;i++) particles.push({
+        x:(current.x+c)*SZ+SZ/2,y:(current.y+r)*SZ+SZ/2,
+        vx:(Math.random()-0.5)*3,vy:-Math.random()*2,
+        life:15,color:current.color
+      });
+    }
+  }));
+}
+
+function clearLines(){
+  let cleared=0;
+  for(let r=ROWS-1;r>=0;r--){
+    if(board[r].every(c=>c)){
+      // Flash effect
+      for(let c=0;c<COLS;c++) particles.push({x:c*SZ+SZ/2,y:r*SZ+SZ/2,vx:(Math.random()-0.5)*8,vy:(Math.random()-0.5)*8,life:25,color:'#fff'});
+      board.splice(r,1);board.unshift(Array(COLS).fill(0));cleared++;r++;
+    }
+  }
+  if(cleared){
+    lines+=cleared;score+=cleared*100*level;level=Math.floor(lines/10)+1;
+    clearInterval(interval);interval=setInterval(drop,Math.max(100,800-level*70));
+    document.getElementById('pts').textContent=score;
+    document.getElementById('lvl').textContent=level;
+    document.getElementById('lines').textContent=lines;
+    if(lines>=10) try{localStorage.setItem('ugWin',Date.now());}catch(e){}
+  }
+}
+
+function drawNext(){
+  nctx.fillStyle='#0d0d2e';nctx.fillRect(0,0,80,80);
+  const s=14,ox=(80-next.shape[0].length*s)/2,oy=(80-next.shape.length*s)/2;
+  next.shape.forEach((row,r)=>row.forEach((v,c)=>{
+    if(v){
+      nctx.fillStyle=next.color;nctx.shadowColor=next.color;nctx.shadowBlur=6;
+      nctx.fillRect(ox+c*s+1,oy+r*s+1,s-2,s-2);
+      // Highlight
+      nctx.fillStyle='rgba(255,255,255,0.2)';
+      nctx.fillRect(ox+c*s+1,oy+r*s+1,s-2,4);
+      nctx.shadowBlur=0;
+    }
+  }));
+}
+
+function draw(){
+  // Background
+  const bg=ctx.createLinearGradient(0,0,0,canvas.height);
+  bg.addColorStop(0,'#05050f');bg.addColorStop(1,'#0a0a20');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Grid
+  ctx.strokeStyle='rgba(204,0,255,0.06)';ctx.lineWidth=0.5;
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)ctx.strokeRect(c*SZ,r*SZ,SZ,SZ);
+
+  // Board
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(board[r][c]){
+      drawCell(ctx,c*SZ,r*SZ,board[r][c],SZ);
+    }
+  }
+
+  // Ghost piece
+  if(current){
+    let ghostY=current.y;
+    while(!collide(current,0,ghostY-current.y+1))ghostY++;
+    current.shape.forEach((row,r)=>row.forEach((v,c)=>{
+      if(v&&ghostY+r>=0){
+        ctx.fillStyle='rgba(255,255,255,0.08)';
+        ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;
+        ctx.fillRect((current.x+c)*SZ+1,(ghostY+r)*SZ+1,SZ-2,SZ-2);
+        ctx.strokeRect((current.x+c)*SZ+1,(ghostY+r)*SZ+1,SZ-2,SZ-2);
+      }
+    }));
+    // Current piece
+    current.shape.forEach((row,r)=>row.forEach((v,c)=>{
+      if(v)drawCell(ctx,(current.x+c)*SZ,(current.y+r)*SZ,current.color,SZ);
+    }));
+  }
+
+  // Particles
+  particles=particles.filter(p=>{
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.1;p.life--;
+    ctx.globalAlpha=p.life/25;ctx.fillStyle=p.color;ctx.shadowColor=p.color;ctx.shadowBlur=4;
+    ctx.beginPath();ctx.arc(p.x,p.y,2,0,Math.PI*2);ctx.fill();
+    return p.life>0;
+  });
+  ctx.globalAlpha=1;ctx.shadowBlur=0;
+}
+
+function drawCell(c,x,y,color,sz){
+  // Main fill
+  c.fillStyle=color;c.shadowColor=color;c.shadowBlur=6;
+  c.fillRect(x+1,y+1,sz-2,sz-2);
+  // Highlight top
+  c.fillStyle='rgba(255,255,255,0.25)';c.shadowBlur=0;
+  c.fillRect(x+1,y+1,sz-2,4);
+  // Shadow bottom
+  c.fillStyle='rgba(0,0,0,0.3)';
+  c.fillRect(x+1,y+sz-5,sz-2,4);
+}
+
+document.addEventListener('keydown',e=>{
+  if(!running)return;
+  if(e.key==='ArrowLeft'&&!collide(current,-1,0))current.x--;
+  if(e.key==='ArrowRight'&&!collide(current,1,0))current.x++;
+  if(e.key==='ArrowDown')drop();
+  if(e.key==='ArrowUp'){const rot=rotate(current.shape);if(!collide(current,0,0,rot))current.shape=rot;}
+  if(e.key===' '){while(!collide(current,0,1))current.y++;drop();}
+  if(['ArrowLeft','ArrowRight','ArrowDown','ArrowUp',' '].includes(e.key))e.preventDefault();
+  draw();
+});
+</script>
+</body>
+</html>

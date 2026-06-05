@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parachute</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#050510; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; font-family:'Courier New',monospace; color:#fff; overflow:hidden; }
+#ui { display:flex; gap:20px; margin-bottom:6px; }
+.sv { font-size:20px; font-weight:bold; color:#00fff5; text-shadow:0 0 10px #00fff5; }
+.sl { font-size:9px; color:#555; letter-spacing:2px; text-align:center; }
+canvas { display:block; border-radius:8px; box-shadow:0 0 30px rgba(0,255,245,0.2); }
+#msg { margin-top:6px; font-size:13px; color:#00fff5; min-height:16px; text-align:center; }
+button { margin-top:6px; background:linear-gradient(135deg,#00fff5,#00a8ff); color:#000; border:none; padding:8px 22px; font-size:13px; font-family:'Courier New',monospace; font-weight:bold; border-radius:8px; cursor:pointer; }
+</style>
+</head>
+<body>
+<div id="ui">
+  <div><div class="sv" id="pts">0</div><div class="sl">PUNTOS</div></div>
+  <div><div class="sv" id="lives">❤️❤️❤️</div><div class="sl">VIDAS</div></div>
+  <div><div class="sv" id="wave">1</div><div class="sl">OLA</div></div>
+</div>
+<canvas id="c" width="400" height="380"></canvas>
+<div id="msg">Presiona INICIAR</div>
+<button onclick="startGame()">INICIAR</button>
+<script>
+const C=document.getElementById('c'),ctx=C.getContext('2d');
+const W=400,H=380;
+let boat,troops,bullets,score,lives,wave,running,animId,frame,particles,keys={},spawnTimer,clouds;
+
+function startGame(){
+  boat={x:W/2-35,y:H-40,w:70,h:25,vx:0};
+  troops=[];bullets=[];particles=[];score=0;lives=3;wave=1;running=true;frame=0;spawnTimer=0;
+  clouds=[{x:50,y:40,w:80},{x:200,y:60,w:100},{x:320,y:30,w:70}];
+  document.getElementById('pts').textContent=0;
+  document.getElementById('lives').textContent='❤️❤️❤️';
+  document.getElementById('wave').textContent=1;
+  document.getElementById('msg').textContent='← → mover | Espacio = disparar';
+  cancelAnimationFrame(animId);animId=requestAnimationFrame(loop);
+}
+
+function addParticles(x,y,color,n=8){
+  for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-0.5)*8,vy:(Math.random()-0.5)*8-1,life:20,color,size:Math.random()*4+1});
+}
+
+let shootCd=0;
+function loop(){animId=requestAnimationFrame(loop);frame++;if(running)update();draw();}
+
+function update(){
+  shootCd=Math.max(0,shootCd-1);
+  if(keys['ArrowLeft']||keys['a']||keys['A'])boat.x=Math.max(0,boat.x-4);
+  if(keys['ArrowRight']||keys['d']||keys['D'])boat.x=Math.min(W-boat.w,boat.x+4);
+  if(keys[' ']&&shootCd===0){bullets.push({x:boat.x+boat.w/2,y:boat.y,vy:-8,trail:[]});shootCd=15;}
+
+  // Spawn troops from helicopters
+  spawnTimer++;
+  if(spawnTimer>Math.max(30,80-wave*8)){
+    spawnTimer=0;
+    troops.push({x:Math.random()*(W-30)+15,y:-20,vy:0.8+wave*0.1,parachute:true,r:14,flash:0,swingAngle:0});
+  }
+
+  bullets=bullets.filter(b=>{
+    b.trail.push({x:b.x,y:b.y});if(b.trail.length>6)b.trail.shift();
+    b.y+=b.vy;
+    if(b.y<0)return false;
+    for(let t of troops){
+      if(Math.sqrt((b.x-t.x)**2+(b.y-t.y)**2)<t.r+4){
+        addParticles(t.x,t.y,'#ff0055',8);t.dead=true;score+=10*(wave);
+        document.getElementById('pts').textContent=score;return false;
+      }
+    }
+    return true;
+  });
+
+  troops=troops.filter(t=>{
+    if(t.dead)return false;
+    if(t.flash>0)t.flash--;
+    t.swingAngle=Math.sin(frame*0.03+t.x)*0.15;
+    t.y+=t.vy;
+    if(t.parachute&&t.y>H*0.6)t.parachute=false;
+    if(!t.parachute)t.vy=Math.min(t.vy+0.2,4);
+    if(t.y>H-25){
+      // Reached boat level
+      if(t.x>boat.x-10&&t.x<boat.x+boat.w+10){
+        lives--;const lv=['❤️❤️❤️','❤️❤️🖤','❤️🖤🖤','🖤🖤🖤'];
+        document.getElementById('lives').textContent=lv[3-lives]||'🖤🖤🖤';
+        addParticles(t.x,H-25,'#ff0055',10);
+        if(lives<=0){running=false;document.getElementById('msg').textContent='💀 GAME OVER — '+score+' pts';}
+      }
+      return false;
+    }
+    return true;
+  });
+
+  if(!troops.length&&running&&frame>60){
+    wave++;document.getElementById('wave').textContent=wave;
+    document.getElementById('msg').textContent='⭐ OLA '+wave+'!';
+    setTimeout(()=>{if(running)document.getElementById('msg').textContent='';},1000);
+  }
+
+  clouds.forEach(c=>{c.x-=0.3;if(c.x+c.w<0)c.x=W+20;});
+  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.15;p.life--;return p.life>0;});
+}
+
+function draw(){
+  // Sky gradient
+  const sky=ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,'#050520');sky.addColorStop(0.6,'#0a1530');sky.addColorStop(1,'#0a2810');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+
+  // Clouds
+  clouds.forEach(c=>{
+    ctx.fillStyle='rgba(255,255,255,0.06)';
+    ctx.beginPath();ctx.ellipse(c.x,c.y,c.w/2,18,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(c.x-20,c.y+8,c.w/3,13,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(c.x+25,c.y+5,c.w/3,11,0,0,Math.PI*2);ctx.fill();
+  });
+
+  // Water
+  const water=ctx.createLinearGradient(0,H-55,0,H);
+  water.addColorStop(0,'#001428');water.addColorStop(1,'#000a14');
+  ctx.fillStyle=water;ctx.fillRect(0,H-55,W,55);
+  // Waves
+  ctx.strokeStyle='rgba(0,255,245,0.2)';ctx.lineWidth=1;
+  for(let i=0;i<4;i++){
+    ctx.beginPath();
+    for(let x=0;x<W;x+=5){ctx.lineTo(x,H-40-i*8+Math.sin((x+frame*0.8)*0.08)*3);}
+    ctx.stroke();
+  }
+
+  // Particles
+  particles.forEach(p=>{
+    ctx.globalAlpha=p.life/20;ctx.fillStyle=p.color;ctx.shadowColor=p.color;ctx.shadowBlur=6;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
+  });
+  ctx.globalAlpha=1;ctx.shadowBlur=0;
+
+  // Troops
+  troops.forEach(t=>{
+    ctx.save();ctx.translate(t.x,t.y);ctx.rotate(t.swingAngle);
+    if(t.parachute){
+      // Parachute
+      ctx.fillStyle='rgba(255,0,85,0.7)';ctx.strokeStyle='rgba(255,0,85,0.9)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.arc(0,-22,18,Math.PI,0);ctx.closePath();ctx.fill();ctx.stroke();
+      // Strings
+      ctx.strokeStyle='rgba(255,255,255,0.4)';
+      [-12,-4,4,12].forEach(x=>{ctx.beginPath();ctx.moveTo(x,-22);ctx.lineTo(0,0);ctx.stroke();});
+    }
+    // Person
+    ctx.font='20px serif';ctx.textAlign='center';ctx.fillText('🪖',0,8);
+    ctx.restore();
+  });
+
+  // Bullets
+  bullets.forEach(b=>{
+    b.trail.forEach((t,i)=>{
+      ctx.fillStyle=`rgba(255,230,0,${i/b.trail.length*0.4})`;
+      ctx.beginPath();ctx.arc(t.x,t.y,2,0,Math.PI*2);ctx.fill();
+    });
+    ctx.fillStyle='#ffe600';ctx.shadowColor='#ffe600';ctx.shadowBlur=8;
+    ctx.beginPath();ctx.arc(b.x,b.y,4,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+  });
+
+  // Boat
+  const boatG=ctx.createLinearGradient(boat.x,boat.y,boat.x,boat.y+boat.h);
+  boatG.addColorStop(0,'#224488');boatG.addColorStop(1,'#112244');
+  ctx.fillStyle=boatG;ctx.shadowColor='#00fff5';ctx.shadowBlur=15;
+  ctx.beginPath();ctx.roundRect(boat.x,boat.y,boat.w,boat.h,8);ctx.fill();
+  // Cannon
+  ctx.fillStyle='#334';ctx.shadowBlur=0;ctx.fillRect(boat.x+boat.w/2-4,boat.y-10,8,14);
+  ctx.fillStyle='rgba(0,255,245,0.5)';ctx.beginPath();ctx.arc(boat.x+boat.w/2,boat.y-10,4,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;
+}
+
+document.addEventListener('keydown',e=>{keys[e.key]=true;if([' ','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();});
+document.addEventListener('keyup',e=>{keys[e.key]=false;});
+let tx=0;
+C.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;if(running&&shootCd===0){bullets.push({x:boat.x+boat.w/2,y:boat.y,vy:-8,trail:[]});shootCd=15;}e.preventDefault();},{passive:false});
+C.addEventListener('touchmove',e=>{
+  const dx=e.touches[0].clientX-tx;
+  if(dx>10){keys['ArrowRight']=true;keys['ArrowLeft']=false;}
+  else if(dx<-10){keys['ArrowLeft']=true;keys['ArrowRight']=false;}
+  e.preventDefault();
+},{passive:false});
+C.addEventListener('touchend',e=>{keys['ArrowLeft']=false;keys['ArrowRight']=false;e.preventDefault();},{passive:false});
+</script>
+</body>
+</html>

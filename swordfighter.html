@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sword Fighter</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#050510; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; font-family:'Courier New',monospace; color:#fff; padding:10px; overflow:hidden; }
+h1 { color:#ff9900; font-size:22px; margin-bottom:4px; text-shadow:0 0 15px #ff9900; }
+#info { display:flex; gap:16px; margin-bottom:6px; align-items:center; flex-wrap:wrap; justify-content:center; }
+.hp-wrap { display:flex; flex-direction:column; align-items:center; gap:3px; }
+.hp-bar { width:130px; height:13px; background:#1a1a3e; border-radius:6px; overflow:hidden; border:1px solid #333; }
+.hp-fill { height:100%; border-radius:6px; transition:width .3s; }
+.sv { font-size:13px; font-weight:bold; }
+canvas { display:block; border-radius:8px; box-shadow:0 0 30px rgba(255,150,0,0.3); }
+#msg { margin-top:6px; font-size:13px; color:#ff9900; min-height:16px; text-align:center; }
+#btns { display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; justify-content:center; }
+.btn { border:none; padding:8px 16px; font-size:12px; font-family:'Courier New',monospace; font-weight:bold; border-radius:6px; cursor:pointer; }
+#hint { font-size:9px; color:#444; margin-top:3px; text-align:center; }
+</style>
+</head>
+<body>
+<h1>⚔️ SWORD FIGHTER</h1>
+<div id="info">
+  <div class="hp-wrap">
+    <div class="sv" style="color:#00fff5">TÚ ❤️</div>
+    <div class="hp-bar"><div class="hp-fill" id="p1hp" style="background:linear-gradient(90deg,#00fff5,#0088ff);width:100%"></div></div>
+  </div>
+  <div style="font-size:20px;color:#ffe600;font-weight:bold">VS</div>
+  <div class="hp-wrap">
+    <div class="sv" style="color:#ff0055">ENEMIGO 😈</div>
+    <div class="hp-bar"><div class="hp-fill" id="p2hp" style="background:linear-gradient(90deg,#ff0055,#ff6600);width:100%"></div></div>
+  </div>
+</div>
+<canvas id="c" width="480" height="280"></canvas>
+<div id="msg">Presiona INICIAR</div>
+<div id="btns">
+  <button class="btn" style="background:#00fff5;color:#000" onclick="startGame()">INICIAR</button>
+  <button class="btn" style="background:#ff6600;color:#fff" onmousedown="setKey('atk',true)" onmouseup="setKey('atk',false)" ontouchstart="setKey('atk',true);event.preventDefault()" ontouchend="setKey('atk',false)">⚔️ ATACAR (Z)</button>
+  <button class="btn" style="background:#444;color:#fff" onmousedown="setKey('blk',true)" onmouseup="setKey('blk',false)" ontouchstart="setKey('blk',true);event.preventDefault()" ontouchend="setKey('blk',false)">🛡️ BLOQUEAR (X)</button>
+  <button class="btn" style="background:#cc00ff;color:#fff" onmousedown="setKey('jmp',true)" onmouseup="setKey('jmp',false)" ontouchstart="setKey('jmp',true);event.preventDefault()" ontouchend="setKey('jmp',false)">⬆️ SALTAR (↑)</button>
+</div>
+<div id="hint">A/D = mover | Z = atacar | X = bloquear | ↑ = saltar</div>
+
+<script>
+const C=document.getElementById('c'),ctx=C.getContext('2d');
+const W=480,H=280,FLOOR=220;
+
+const K={left:false,right:false,atk:false,blk:false,jmp:false};
+let atkPressed=false,jmpPressed=false;
+
+function setKey(k,v){ K[k]=v; }
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='a'||e.key==='A'||e.key==='ArrowLeft')K.left=true;
+  if(e.key==='d'||e.key==='D'||e.key==='ArrowRight')K.right=true;
+  if(e.key==='z'||e.key==='Z'||e.key==='j'||e.key==='J')K.atk=true;
+  if(e.key==='x'||e.key==='X'||e.key==='k'||e.key==='K')K.blk=true;
+  if(e.key==='ArrowUp'||e.key==='l'||e.key==='L')K.jmp=true;
+  if(['ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();
+});
+document.addEventListener('keyup',e=>{
+  if(e.key==='a'||e.key==='A'||e.key==='ArrowLeft')K.left=false;
+  if(e.key==='d'||e.key==='D'||e.key==='ArrowRight')K.right=false;
+  if(e.key==='z'||e.key==='Z'||e.key==='j'||e.key==='J')K.atk=false;
+  if(e.key==='x'||e.key==='X'||e.key==='k'||e.key==='K')K.blk=false;
+  if(e.key==='ArrowUp'||e.key==='l'||e.key==='L')K.jmp=false;
+});
+
+let p1,p2,particles,running,animId,frame;
+
+function startGame(){
+  p1={x:80,y:FLOOR,vy:0,hp:100,maxHp:100,facing:1,atkCd:0,atkAnim:0,jumping:false,stunned:0,color:'#00fff5'};
+  p2={x:W-100,y:FLOOR,vy:0,hp:100,maxHp:100,facing:-1,atkCd:0,atkAnim:0,jumping:false,stunned:0,color:'#ff0055',aiTimer:0,aiAction:''};
+  particles=[];running=true;frame=0;
+  document.getElementById('p1hp').style.width='100%';
+  document.getElementById('p2hp').style.width='100%';
+  document.getElementById('msg').textContent='';
+  cancelAnimationFrame(animId);animId=requestAnimationFrame(loop);
+}
+
+function addParticles(x,y,color,n=8){
+  for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-0.5)*8,vy:(Math.random()-0.5)*8-2,life:18,color});
+}
+
+function doAttack(attacker,defender){
+  if(attacker.atkCd>0)return;
+  attacker.atkCd=40;
+  attacker.atkAnim=20;
+  setTimeout(()=>{
+    if(!running)return;
+    const inRange=Math.abs(attacker.x-defender.x)<80;
+    if(!inRange)return;
+    if(K.blk&&defender===p1){
+      addParticles((attacker.x+defender.x)/2,defender.y,'#ffe600',5);
+      return;
+    }
+    if(defender===p2&&defender.aiAction==='blk'){
+      addParticles((attacker.x+defender.x)/2,defender.y,'#ffe600',5);
+      return;
+    }
+    const dmg=12+Math.random()*8;
+    defender.hp=Math.max(0,defender.hp-dmg);
+    defender.stunned=20;
+    addParticles(defender.x,defender.y,'#ff0055',10);
+    document.getElementById(defender===p1?'p1hp':'p2hp').style.width=(defender.hp/defender.maxHp*100)+'%';
+    if(defender.hp<=0){
+      running=false;
+      if(defender===p2){document.getElementById('msg').textContent='🏆 ¡VICTORIA!';try{localStorage.setItem('ugWin',Date.now());}catch(e){}}
+      else document.getElementById('msg').textContent='💀 DERROTA — intenta de nuevo';
+    }
+  },180);
+}
+
+function loop(){animId=requestAnimationFrame(loop);frame++;if(running)update();draw();}
+
+function update(){
+  // P1
+  if(p1.stunned>0){p1.stunned--;}
+  else{
+    if(K.left){p1.x-=3;p1.facing=-1;}
+    if(K.right){p1.x+=3;p1.facing=1;}
+    if(K.jmp&&!p1.jumping){p1.vy=-11;p1.jumping=true;}
+    if(K.atk&&!atkPressed){atkPressed=true;doAttack(p1,p2);}
+    if(!K.atk)atkPressed=false;
+  }
+  if(K.jmp&&!jmpPressed&&!p1.jumping){p1.vy=-11;p1.jumping=true;jmpPressed=true;}
+  if(!K.jmp)jmpPressed=false;
+
+  p1.vy+=0.6;p1.y+=p1.vy;
+  if(p1.y>=FLOOR){p1.y=FLOOR;p1.vy=0;p1.jumping=false;}
+  p1.x=Math.max(20,Math.min(W-20,p1.x));
+  if(p1.atkCd>0)p1.atkCd--;
+  if(p1.atkAnim>0)p1.atkAnim--;
+
+  // AI
+  p2.aiTimer--;
+  if(p2.aiTimer<=0&&p2.stunned<=0){
+    p2.aiTimer=40+Math.random()*50;
+    const dx=p1.x-p2.x;
+    p2.facing=dx>0?1:-1;
+    const r=Math.random();
+    if(Math.abs(dx)>90&&r<0.5){p2.x+=dx>0?2:-2;p2.aiAction='move';}
+    else if(r<0.4&&p2.atkCd<=0){doAttack(p2,p1);p2.aiAction='atk';}
+    else if(r<0.6){p2.aiAction='blk';}
+    else{p2.aiAction='idle';}
+  }
+  if(p2.stunned>0)p2.stunned--;
+  p2.vy+=0.6;p2.y+=p2.vy;
+  if(p2.y>=FLOOR){p2.y=FLOOR;p2.vy=0;p2.jumping=false;}
+  p2.x=Math.max(20,Math.min(W-20,p2.x));
+  if(p2.atkCd>0)p2.atkCd--;
+  if(p2.atkAnim>0)p2.atkAnim--;
+
+  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.2;p.life--;return p.life>0;});
+}
+
+function drawFighter(p,label){
+  ctx.save();ctx.translate(p.x,p.y);ctx.scale(p.facing,1);
+  ctx.shadowColor=p.color;ctx.shadowBlur=10;
+  // Shadow
+  ctx.globalAlpha=0.3;ctx.fillStyle='#000';ctx.beginPath();ctx.ellipse(0,5,16,5,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+  // Body
+  const bg=ctx.createLinearGradient(-13,-40,13,10);
+  bg.addColorStop(0,p.color);bg.addColorStop(1,p.color+'66');
+  ctx.fillStyle=bg;ctx.beginPath();ctx.roundRect(-13,-40,26,50,5);ctx.fill();
+  // Legs
+  ctx.fillStyle=p.color+'99';
+  ctx.fillRect(-10,10,8,18);ctx.fillRect(2,10,8,18);
+  // Head
+  ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(0,-46,11,0,Math.PI*2);ctx.fill();
+  // Eye
+  ctx.fillStyle='#fff';ctx.shadowBlur=0;ctx.beginPath();ctx.arc(5,-47,4,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#000';ctx.beginPath();ctx.arc(6,-47,2,0,Math.PI*2);ctx.fill();
+  // Sword
+  const swordAngle=p.atkAnim>0?-0.8:0.2;
+  ctx.save();ctx.translate(12,-20);ctx.rotate(swordAngle);
+  ctx.fillStyle='#ccc';ctx.shadowColor='#fff';ctx.shadowBlur=p.atkAnim>0?15:3;
+  ctx.fillRect(-2,-30,5,40);
+  ctx.fillStyle='#885500';ctx.fillRect(-6,-2,14,6);
+  ctx.restore();
+  // Shield if blocking
+  if((label==='p1'&&K.blk)||(label==='p2'&&p.aiAction==='blk')){
+    ctx.fillStyle='rgba(255,230,0,0.5)';ctx.strokeStyle='#ffe600';ctx.lineWidth=2;ctx.shadowColor='#ffe600';ctx.shadowBlur=12;
+    ctx.beginPath();ctx.ellipse(-16,-15,10,20,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+  }
+  ctx.shadowBlur=0;ctx.restore();
+  // Label
+  ctx.fillStyle=p.color;ctx.font='10px Courier New';ctx.textAlign='center';
+  ctx.fillText(label==='p1'?'TÚ':'ENEMIGO',p.x,p.y-60);
+}
+
+function draw(){
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#050510');bg.addColorStop(1,'#0a0a1e');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  // Floor
+  ctx.fillStyle='#1a1a3e';ctx.fillRect(0,FLOOR+2,W,H-FLOOR);
+  ctx.strokeStyle='rgba(255,150,0,0.4)';ctx.lineWidth=2;ctx.shadowColor='#ff9900';ctx.shadowBlur=8;
+  ctx.beginPath();ctx.moveTo(0,FLOOR+2);ctx.lineTo(W,FLOOR+2);ctx.stroke();ctx.shadowBlur=0;
+  // Background pillars
+  [80,200,280,400].forEach(x=>{
+    ctx.fillStyle='rgba(255,255,255,0.02)';ctx.fillRect(x-8,0,16,FLOOR+2);
+  });
+  particles.forEach(p=>{
+    ctx.globalAlpha=p.life/18;ctx.fillStyle=p.color;ctx.shadowColor=p.color;ctx.shadowBlur=5;
+    ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();
+  });
+  ctx.globalAlpha=1;ctx.shadowBlur=0;
+  if(p1)drawFighter(p1,'p1');
+  if(p2)drawFighter(p2,'p2');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Penales</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#050510; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; font-family:'Courier New',monospace; color:#fff; padding:12px; }
+h1 { color:#39ff14; font-size:24px; margin-bottom:6px; text-shadow:0 0 20px #39ff14; }
+#info { display:flex; gap:24px; margin-bottom:8px; }
+.sv { font-size:22px; font-weight:bold; color:#39ff14; text-shadow:0 0 10px #39ff14; }
+.sl { font-size:9px; color:#555; letter-spacing:2px; text-align:center; }
+canvas { display:block; border-radius:10px; box-shadow:0 0 40px rgba(57,255,20,0.2); cursor:crosshair; }
+#msg { margin-top:10px; font-size:14px; color:#39ff14; min-height:22px; text-align:center; font-weight:bold; }
+button { margin-top:8px; background:linear-gradient(135deg,#39ff14,#22cc00); color:#000; border:none; padding:10px 28px; font-size:13px; font-family:'Courier New',monospace; font-weight:bold; border-radius:8px; cursor:pointer; box-shadow:0 0 20px rgba(57,255,20,0.3); }
+</style>
+</head>
+<body>
+<h1>⚽ PENALES</h1>
+<div id="info">
+  <div><div class="sv" id="goals">0</div><div class="sl">GOLES</div></div>
+  <div><div class="sv" id="shots">5</div><div class="sl">TIROS</div></div>
+  <div><div class="sv" id="keeper">😤</div><div class="sl">PORTERO</div></div>
+</div>
+<canvas id="c" width="400" height="320"></canvas>
+<div id="msg">Clic donde quieres tirar</div>
+<button onclick="startGame()">INICIAR</button>
+<script>
+const C=document.getElementById('c'),ctx=C.getContext('2d');
+const W=400,H=320;
+let goals,shots,ball,keeper,state,animId,frame,particles,keeperTarget;
+
+function startGame(){
+  goals=0;shots=5;state='ready';particles=[];frame=0;
+  keeper={x:W/2,y:75,w:40,h:40,vx:0};
+  ball={x:W/2,y:H-50,r:18,vx:0,vy:0,moving:false,trail:[]};
+  keeperTarget=W/2+(Math.random()-0.5)*120;
+  document.getElementById('goals').textContent=0;
+  document.getElementById('shots').textContent=5;
+  document.getElementById('keeper').textContent='😤';
+  document.getElementById('msg').textContent='¡Clic para tirar!';
+  cancelAnimationFrame(animId);animId=requestAnimationFrame(loop);
+}
+
+function addParticles(x,y,color,n=10){
+  for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-0.5)*10,vy:(Math.random()-0.5)*10-3,life:25,color,size:Math.random()*6+2});
+}
+
+function loop(){animId=requestAnimationFrame(loop);frame++;update();draw();}
+
+function update(){
+  // Keeper moves
+  if(state!=='ready'){
+    const dx=keeperTarget-keeper.x;
+    keeper.x+=dx*0.06;
+  }
+
+  if(!ball.moving)return;
+  ball.trail.push({x:ball.x,y:ball.y});if(ball.trail.length>12)ball.trail.shift();
+  ball.x+=ball.vx;ball.y+=ball.vy;
+  ball.vy*=0.98;ball.vx*=0.98;
+
+  // Goal check
+  if(ball.y<90){
+    const goalLeft=W/2-90,goalRight=W/2+90;
+    if(ball.x>goalLeft&&ball.x<goalRight&&ball.y>45){
+      // Check if keeper saves
+      if(Math.abs(ball.x-keeper.x)<keeper.w/2+ball.r){
+        // Save!
+        ball.moving=false;state='saved';
+        document.getElementById('keeper').textContent='🦸';
+        document.getElementById('msg').textContent='🧤 ¡ATAJADO! +puntos al portero';
+        addParticles(keeper.x,keeper.y,'#ff9900',8);
+      } else {
+        // Goal!
+        goals++;ball.moving=false;state='scored';
+        document.getElementById('goals').textContent=goals;
+        document.getElementById('keeper').textContent='😭';
+        document.getElementById('msg').textContent='⚽ ¡GOOOL!';
+        addParticles(ball.x,ball.y,'#39ff14',15);
+        addParticles(ball.x,ball.y,'#ffe600',10);
+      }
+      setTimeout(nextShot,1500);
+    } else if(ball.y<50){
+      ball.moving=false;state='miss';
+      document.getElementById('msg').textContent='❌ ¡Afuera!';
+      setTimeout(nextShot,1200);
+    }
+  }
+
+  if(ball.x<0||ball.x>W){ball.moving=false;state='miss';document.getElementById('msg').textContent='❌ ¡Afuera!';setTimeout(nextShot,1200);}
+
+  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.2;p.life--;return p.life>0;});
+}
+
+function nextShot(){
+  shots--;document.getElementById('shots').textContent=shots;
+  if(shots<=0){
+    const won=goals>=3;
+    document.getElementById('msg').textContent=won?'🏆 ¡GANASTE! '+goals+'/5 goles':'💀 Perdiste — '+goals+'/5 goles';
+    if(won)try{localStorage.setItem('ugWin',Date.now());}catch(e){}
+    return;
+  }
+  ball={x:W/2,y:H-50,r:18,vx:0,vy:0,moving:false,trail:[]};
+  keeper={x:W/2,y:75,w:40,h:40};
+  keeperTarget=W/2+(Math.random()-0.5)*140;
+  state='ready';document.getElementById('keeper').textContent='😤';
+  document.getElementById('msg').textContent='¡Clic para tirar!';
+}
+
+C.addEventListener('click',e=>{
+  if(state!=='ready')return;
+  const r=C.getBoundingClientRect();
+  const tx=e.clientX-r.left,ty=e.clientY-r.top;
+  const dx=tx-ball.x,dy=ty-ball.y;
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  ball.vx=dx/dist*8;ball.vy=dy/dist*8;
+  ball.moving=true;state='flying';
+  document.getElementById('msg').textContent='';
+});
+C.addEventListener('touchend',e=>{
+  if(state!=='ready')return;
+  const r=C.getBoundingClientRect();
+  const tx=e.changedTouches[0].clientX-r.left,ty=e.changedTouches[0].clientY-r.top;
+  const dx=tx-ball.x,dy=ty-ball.y;
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  ball.vx=dx/dist*8;ball.vy=dy/dist*8;
+  ball.moving=true;state='flying';e.preventDefault();
+},{passive:false});
+
+function draw(){
+  // Sky background
+  const sky=ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,'#050a10');sky.addColorStop(1,'#0a1505');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+
+  // Field
+  const field=ctx.createLinearGradient(0,H*0.5,0,H);
+  field.addColorStop(0,'#0a2010');field.addColorStop(1,'#051005');
+  ctx.fillStyle=field;ctx.fillRect(0,H*0.5,W,H*0.5);
+
+  // Field stripes
+  for(let i=0;i<5;i++){
+    ctx.fillStyle=`rgba(${i%2===0?'20,60,20':'15,45,15'},0.8)`;
+    ctx.fillRect(0,H*0.5+i*30,W,30);
+  }
+
+  // Center circle
+  ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(W/2,H-20,50,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,H-20);ctx.lineTo(W,H-20);ctx.stroke();
+
+  // Goal
+  ctx.strokeStyle='rgba(255,255,255,0.6)';ctx.lineWidth=3;ctx.shadowColor='#fff';ctx.shadowBlur=10;
+  ctx.strokeRect(W/2-90,45,180,50);
+  // Net effect
+  ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=1;ctx.shadowBlur=0;
+  for(let x=W/2-90;x<W/2+90;x+=18){ctx.beginPath();ctx.moveTo(x,45);ctx.lineTo(x,95);ctx.stroke();}
+  for(let y=45;y<95;y+=12){ctx.beginPath();ctx.moveTo(W/2-90,y);ctx.lineTo(W/2+90,y);ctx.stroke();}
+
+  // Particles
+  particles.forEach(p=>{
+    ctx.globalAlpha=p.life/25;ctx.fillStyle=p.color;ctx.shadowColor=p.color;ctx.shadowBlur=8;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.size*(p.life/25),0,Math.PI*2);ctx.fill();
+  });
+  ctx.globalAlpha=1;ctx.shadowBlur=0;
+
+  // Keeper
+  ctx.font='36px serif';ctx.textAlign='center';
+  ctx.fillText('🧤',keeper.x,keeper.y+12);
+
+  // Ball trail
+  ball.trail.forEach((t,i)=>{
+    ctx.globalAlpha=(i/ball.trail.length)*0.3;
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(t.x,t.y,ball.r*(i/ball.trail.length)*0.8,0,Math.PI*2);ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  // Ball
+  const ballG=ctx.createRadialGradient(ball.x-4,ball.y-4,2,ball.x,ball.y,ball.r);
+  ballG.addColorStop(0,'#ffffff');ballG.addColorStop(0.5,'#cccccc');ballG.addColorStop(1,'#444444');
+  ctx.fillStyle=ballG;ctx.shadowColor='rgba(255,255,255,0.5)';ctx.shadowBlur=10;
+  ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);ctx.fill();
+  // Ball pattern
+  ctx.fillStyle='rgba(0,0,0,0.3)';ctx.shadowBlur=0;
+  [[0,-8],[7,5],[-7,5]].forEach(([dx,dy])=>{ctx.beginPath();ctx.arc(ball.x+dx,ball.y+dy,5,0,Math.PI*2);ctx.fill();});
+
+  // Aim line
+  if(state==='ready'){
+    ctx.strokeStyle='rgba(57,255,20,0.2)';ctx.lineWidth=1;ctx.setLineDash([5,5]);
+    ctx.beginPath();ctx.moveTo(ball.x,ball.y);
+    ctx.lineTo(ball.x,45);ctx.stroke();ctx.setLineDash([]);
+  }
+  ctx.shadowBlur=0;ctx.textAlign='left';
+}
+</script>
+</body>
+</html>

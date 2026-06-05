@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#050510; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; font-family:'Courier New',monospace; color:#fff; padding:16px; }
+h1 { color:#00fff5; font-size:22px; margin-bottom:6px; text-shadow:0 0 15px #00fff5; letter-spacing:3px; }
+#info { font-size:13px; color:#aaa; margin-bottom:14px; display:flex; gap:24px; }
+.iv { color:#00fff5; font-weight:bold; font-size:16px; }
+#grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px; max-width:380px; width:100%; }
+.card {
+  aspect-ratio:1; border-radius:12px; display:flex; align-items:center; justify-content:center;
+  font-size:34px; cursor:pointer; transition:transform .3s, box-shadow .3s;
+  background:linear-gradient(135deg,#0d0d2e,#1a1a4e);
+  border:2px solid #1e1e4e; position:relative; overflow:hidden;
+  user-select:none;
+}
+.card::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(0,255,245,.05),transparent); }
+.card:hover:not(.flipped):not(.matched) { transform:scale(1.04); border-color:#00fff5; box-shadow:0 0 15px rgba(0,255,245,.2); }
+.card.flipped { background:linear-gradient(135deg,#1a1a4e,#2a2a6e); border-color:#00fff5; box-shadow:0 0 20px rgba(0,255,245,.3); transform:rotateY(0); }
+.card.matched { background:linear-gradient(135deg,#0a2e1a,#1a4e2a); border-color:#39ff14; box-shadow:0 0 20px rgba(57,255,20,.4); animation:matchPop .3s ease; }
+.card.wrong { border-color:#ff0055; background:linear-gradient(135deg,#2e0a1a,#4e1a2a); animation:shake .3s; }
+@keyframes matchPop { 0%{transform:scale(1)} 50%{transform:scale(1.15)} 100%{transform:scale(1)} }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+#msg { font-size:14px; color:#00fff5; min-height:22px; text-align:center; }
+button { margin-top:10px; background:linear-gradient(135deg,#00fff5,#00a8ff); color:#000; border:none; padding:10px 28px; font-size:13px; font-family:'Courier New',monospace; font-weight:bold; border-radius:8px; cursor:pointer; box-shadow:0 0 20px rgba(0,255,245,.3); }
+.card-back { font-size:22px; opacity:0.4; }
+</style>
+</head>
+<body>
+<h1>🃏 MEMORY</h1>
+<div id="info">
+  <span>MOVIMIENTOS: <span class="iv" id="moves">0</span></span>
+  <span>PAREJAS: <span class="iv" id="pairs">0</span>/8</span>
+  <span>TIEMPO: <span class="iv" id="timer">0</span>s</span>
+</div>
+<div id="grid"></div>
+<div id="msg">Presiona INICIAR para jugar</div>
+<button onclick="init()">INICIAR</button>
+<script>
+const EMOJIS=['🎮','🚀','🐉','💎','🏆','⚡','🔥','🌊'];
+let cards,flipped,matched,moves,lock,timerInt,seconds;
+
+function init(){
+  moves=0;matched=0;flipped=[];lock=false;seconds=0;
+  clearInterval(timerInt);
+  document.getElementById('moves').textContent=0;
+  document.getElementById('pairs').textContent=0;
+  document.getElementById('timer').textContent=0;
+  document.getElementById('msg').textContent='¡Encuentra todas las parejas!';
+  timerInt=setInterval(()=>{seconds++;document.getElementById('timer').textContent=seconds;},1000);
+
+  const deck=[...EMOJIS,...EMOJIS].sort(()=>Math.random()-0.5);
+  const grid=document.getElementById('grid');
+  grid.innerHTML='';
+  cards=deck.map((emoji,i)=>{
+    const card=document.createElement('div');
+    card.className='card';
+    card.innerHTML=`<span class="card-back">❓</span>`;
+    card.dataset.emoji=emoji;
+    card.dataset.idx=i;
+    card.style.animationDelay=`${i*0.05}s`;
+    card.addEventListener('click',()=>flip(card,i));
+    grid.appendChild(card);
+    return card;
+  });
+}
+
+function flip(card,idx){
+  if(lock||card.classList.contains('matched')||flipped.includes(idx))return;
+  card.innerHTML=card.dataset.emoji;
+  card.classList.add('flipped');
+  flipped.push(idx);
+  if(flipped.length===2){
+    moves++;document.getElementById('moves').textContent=moves;
+    lock=true;
+    const [a,b]=flipped.map(i=>cards[i]);
+    if(a.dataset.emoji===b.dataset.emoji){
+      setTimeout(()=>{
+        a.classList.add('matched');b.classList.add('matched');
+        matched++;document.getElementById('pairs').textContent=matched;
+        flipped=[];lock=false;
+        if(matched===8){
+          clearInterval(timerInt);
+          document.getElementById('msg').textContent=`🏆 ¡GANASTE! ${moves} movimientos en ${seconds}s`;
+          try{localStorage.setItem('ugWin',Date.now());}catch(e){}
+        }
+      },300);
+    } else {
+      setTimeout(()=>{
+        a.classList.add('wrong');b.classList.add('wrong');
+        setTimeout(()=>{
+          a.innerHTML='<span class="card-back">❓</span>';b.innerHTML='<span class="card-back">❓</span>';
+          a.classList.remove('flipped','wrong');b.classList.remove('flipped','wrong');
+          flipped=[];lock=false;
+        },400);
+      },500);
+    }
+  }
+}
+</script>
+</body>
+</html>

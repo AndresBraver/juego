@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whack a Mole</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#050510; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; font-family:'Courier New',monospace; color:#fff; padding:12px; }
+h1 { color:#ff9900; font-size:22px; margin-bottom:6px; text-shadow:0 0 15px #ff9900; letter-spacing:3px; }
+#info { display:flex; gap:24px; margin-bottom:12px; }
+.sv { font-size:22px; font-weight:bold; color:#ff9900; text-shadow:0 0 10px #ff9900; }
+.sl { font-size:9px; color:#555; letter-spacing:2px; text-align:center; }
+#board { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; max-width:340px; width:100%; margin-bottom:14px; }
+.hole { aspect-ratio:1; background:radial-gradient(circle at 50% 80%,#1a0a00,#0a0500); border:2px solid #2a1a00; border-radius:50%; display:flex; align-items:flex-end; justify-content:center; overflow:hidden; cursor:pointer; position:relative; box-shadow:inset 0 10px 20px rgba(0,0,0,0.8),0 4px 15px rgba(255,150,0,0.1); transition:transform .1s; }
+.hole:active { transform:scale(0.95); }
+.mole { font-size:42px; position:absolute; bottom:-50px; transition:bottom .12s ease-out; filter:drop-shadow(0 0 8px rgba(255,150,0,0.5)); }
+.mole.up { bottom:0; }
+.mole.hit { filter:drop-shadow(0 0 15px rgba(255,0,85,0.8)); transform:scale(1.2); }
+.hit-text { position:absolute; font-size:18px; font-weight:bold; color:#ff0055; pointer-events:none; animation:floatUp .5s ease forwards; top:20%; left:50%; transform:translateX(-50%); }
+@keyframes floatUp { 0%{opacity:1;transform:translateX(-50%) translateY(0)} 100%{opacity:0;transform:translateX(-50%) translateY(-30px)} }
+#timer-bar { width:100%; max-width:340px; height:8px; background:#1a1a3e; border-radius:4px; overflow:hidden; margin-bottom:10px; }
+#timer-fill { height:100%; background:linear-gradient(90deg,#39ff14,#ffe600,#ff0055); border-radius:4px; transition:width .1s; }
+#msg { font-size:14px; color:#ff9900; min-height:20px; text-align:center; }
+button { margin-top:8px; background:linear-gradient(135deg,#ff9900,#ff6600); color:#fff; border:none; padding:10px 28px; font-size:13px; font-family:'Courier New',monospace; font-weight:bold; border-radius:8px; cursor:pointer; box-shadow:0 0 20px rgba(255,150,0,0.3); }
+</style>
+</head>
+<body>
+<h1>🔨 WHACK A MOLE</h1>
+<div id="info">
+  <div class="stat"><div class="sv" id="score">0</div><div class="sl">PUNTOS</div></div>
+  <div class="stat"><div class="sv" id="combo">x1</div><div class="sl">COMBO</div></div>
+  <div class="stat"><div class="sv" id="time">30</div><div class="sl">TIEMPO</div></div>
+</div>
+<div id="timer-bar"><div id="timer-fill" style="width:100%"></div></div>
+<div id="board"></div>
+<div id="msg">Presiona INICIAR</div>
+<button onclick="startGame()">INICIAR</button>
+<script>
+const MOLES=['🐹','🐭','👾','🤡','💀'];
+const SPECIAL='⭐';
+let holes,score,timeLeft,running,intervals,combo,maxCombo;
+
+function startGame(){
+  score=0;timeLeft=30;running=true;combo=1;maxCombo=1;
+  document.getElementById('score').textContent=0;
+  document.getElementById('combo').textContent='x1';
+  document.getElementById('time').textContent=30;
+  document.getElementById('timer-fill').style.width='100%';
+  document.getElementById('msg').textContent='';
+  clearAllIntervals();
+  buildBoard();
+  // Timer
+  intervals.push(setInterval(()=>{
+    timeLeft--;
+    document.getElementById('time').textContent=timeLeft;
+    document.getElementById('timer-fill').style.width=(timeLeft/30*100)+'%';
+    if(timeLeft<=0){
+      running=false;clearAllIntervals();
+      document.getElementById('msg').textContent=`🏆 FIN — ${score} pts | Combo max: x${maxCombo}`;
+      try{localStorage.setItem('ugWin',Date.now());}catch(e){}
+      holes.forEach(h=>hideMole(h));
+    }
+  },1000));
+  // Spawn moles
+  intervals.push(setInterval(()=>{if(running)spawnMole();},700));
+}
+
+function clearAllIntervals(){if(intervals)intervals.forEach(clearInterval);intervals=[];}
+
+function buildBoard(){
+  const board=document.getElementById('board');
+  board.innerHTML='';holes=[];
+  for(let i=0;i<9;i++){
+    const hole=document.createElement('div');
+    hole.className='hole';
+    const mole=document.createElement('div');
+    mole.className='mole';
+    hole.appendChild(mole);
+    hole.addEventListener('click',()=>whack(hole,mole));
+    board.appendChild(hole);
+    holes.push({hole,mole,active:false,timer:null});
+  }
+}
+
+function spawnMole(){
+  const inactive=holes.filter(h=>!h.active);
+  if(!inactive.length)return;
+  const h=inactive[Math.floor(Math.random()*inactive.length)];
+  h.active=true;
+  const isSpecial=Math.random()<0.1;
+  h.mole.textContent=isSpecial?SPECIAL:MOLES[Math.floor(Math.random()*MOLES.length)];
+  h.special=isSpecial;
+  h.mole.classList.add('up');
+  h.timer=setTimeout(()=>hideMole(h),Math.max(600,1200-timeLeft*15));
+}
+
+function hideMole(h){
+  h.mole.classList.remove('up');
+  setTimeout(()=>{h.active=false;},150);
+  if(h.timer)clearTimeout(h.timer);
+}
+
+function whack(hole,mole){
+  if(!running)return;
+  const h=holes.find(h=>h.hole===hole);
+  if(!h||!h.active)return;
+  const pts=h.special?50:10*combo;
+  score+=pts;combo=Math.min(combo+1,8);maxCombo=Math.max(maxCombo,combo);
+  document.getElementById('score').textContent=score;
+  document.getElementById('combo').textContent='x'+combo;
+  mole.classList.add('hit');
+  // Hit text
+  const txt=document.createElement('div');
+  txt.className='hit-text';txt.textContent='+'+pts;
+  hole.appendChild(txt);
+  setTimeout(()=>{txt.remove();mole.classList.remove('hit');},500);
+  hideMole(h);
+  // Miss combo reset timer
+  clearTimeout(h.comboTimer);
+  h.comboTimer=setTimeout(()=>{combo=1;document.getElementById('combo').textContent='x1';},2000);
+}
+</script>
+</body>
+</html>
