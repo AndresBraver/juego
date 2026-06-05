@@ -35,11 +35,14 @@ button { margin-top:8px; background:linear-gradient(135deg,#cc00ff,#6600aa); col
 <button onclick="startGame()">INICIAR</button>
 <div id="hint">← → Mover | ↑ Rotar | ↓ Bajar | Espacio: Caída</div>
 <script>
+
+// Read player color from Ultra Games
+const PLAYER_COLOR = (()=>{ try{return localStorage.getItem('ugColor')||'#00fff5';}catch(e){return '#00fff5';} })();
 const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
 const nc=document.getElementById('nextCanvas'),nctx=nc.getContext('2d');
 const COLS=10,ROWS=20,SZ=20;
 const PIECES=[
-  {shape:[[1,1,1,1]],color:'#00fff5'},
+  {shape:[[1,1,1,1]],color:PLAYER_COLOR},
   {shape:[[1,1],[1,1]],color:'#ffe600'},
   {shape:[[1,1,1],[0,1,0]],color:'#cc00ff'},
   {shape:[[1,1,1],[1,0,0]],color:'#ff9900'},

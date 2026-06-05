@@ -27,6 +27,9 @@ button { margin-top:8px; background:linear-gradient(135deg,#39ff14,#22cc00); col
 <div id="msg">Clic donde quieres tirar</div>
 <button onclick="startGame()">INICIAR</button>
 <script>
+
+// Read player color from Ultra Games
+const PLAYER_COLOR = (()=>{ try{return localStorage.getItem('ugColor')||'#00fff5';}catch(e){return '#00fff5';} })();
 const C=document.getElementById('c'),ctx=C.getContext('2d');
 const W=400,H=320;
 let goals,shots,ball,keeper,state,animId,frame,particles,keeperTarget;
@@ -179,7 +182,7 @@ function draw(){
 
   // Ball
   const ballG=ctx.createRadialGradient(ball.x-4,ball.y-4,2,ball.x,ball.y,ball.r);
-  ballG.addColorStop(0,'#ffffff');ballG.addColorStop(0.5,'#cccccc');ballG.addColorStop(1,'#444444');
+  ballG.addColorStop(0,'#ffffff');ballG.addColorStop(0.5,PLAYER_COLOR+'88');ballG.addColorStop(1,PLAYER_COLOR);
   ctx.fillStyle=ballG;ctx.shadowColor='rgba(255,255,255,0.5)';ctx.shadowBlur=10;
   ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);ctx.fill();
   // Ball pattern

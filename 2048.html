@@ -25,7 +25,7 @@ h1 { color:#ffe600; font-size:28px; margin-bottom:4px; text-shadow:0 0 20px #ffe
 .t256 { background:linear-gradient(135deg,#002a2a,#005555); color:#00fff5; border:1px solid #00fff5; box-shadow:0 0 18px rgba(0,255,245,0.5); font-size:17px; }
 .t512 { background:linear-gradient(135deg,#0a1a2a,#0a3a5a); color:#44aaff; border:1px solid #44aaff; box-shadow:0 0 20px rgba(68,170,255,0.6); font-size:17px; }
 .t1024 { background:linear-gradient(135deg,#1a0a2a,#3a1a5a); color:#ff88ff; border:1px solid #ff88ff; box-shadow:0 0 25px rgba(255,136,255,0.7); font-size:13px; }
-.t2048 { background:linear-gradient(135deg,#2a2a00,#5a5a00); color:#ffff00; border:2px solid #ffff00; box-shadow:0 0 30px rgba(255,255,0,0.8); animation:pulse 0.5s ease; font-size:13px; }
+.t2048 { background:linear-gradient(135deg,#2a2a00,#5a5a00); color:#ffff00; border:2px solid var(--player-color,#ffff00); box-shadow:0 0 30px rgba(255,255,0,0.8); animation:pulse 0.5s ease; font-size:13px; }
 @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
 .new { animation:pop .15s ease; }
 @keyframes pop { 0%{transform:scale(0)} 100%{transform:scale(1)} }
@@ -45,6 +45,9 @@ button { margin-top:8px; background:linear-gradient(135deg,#ffe600,#ff9900); col
 <button onclick="startGame()">INICIAR</button>
 <div id="hint">Flechas o desliza para mover</div>
 <script>
+
+// Read player color from Ultra Games
+const PLAYER_COLOR = (()=>{ try{return localStorage.getItem('ugColor')||'#00fff5';}catch(e){return '#00fff5';} })();
 let grid,score,best=parseInt(localStorage.getItem('2048best')||'0'),running;
 document.getElementById('best').textContent=best;
 
@@ -91,6 +94,7 @@ function move(dir){
   if(score>best){best=score;localStorage.setItem('2048best',best);document.getElementById('best').textContent=best;}
   document.getElementById('pts').textContent=score;
   addTile();
+  document.documentElement.style.setProperty('--player-color',PLAYER_COLOR);
   if(grid.flat().includes(2048)){document.getElementById('msg').textContent='🏆 ¡GANASTE! 2048!';try{localStorage.setItem('ugWin',Date.now());}catch(e){} window.parent.postMessage('ugWin','*');}
   else if(!canMove()){running=false;document.getElementById('msg').textContent='💀 Sin movimientos — '+score+' pts';}
   render();

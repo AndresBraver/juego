@@ -25,6 +25,9 @@ button { margin-top:8px; background:#ffe600; color:#000; border:none; padding:8p
 <div id="msg">Presiona INICIAR</div>
 <button onclick="startGame()">INICIAR</button>
 <script>
+
+// Read player color from Ultra Games
+const PLAYER_COLOR = (()=>{ try{return localStorage.getItem('ugColor')||'#00fff5';}catch(e){return '#00fff5';} })();
 const C=document.getElementById('c'),ctx=C.getContext('2d');
 const W=480,H=400;
 let player,bullets,enemies,eBullets,score,lives,running,animId,keys={},eDir,eTimer,eShootTimer,wave,particles,stars,frame,shootCd;
@@ -163,7 +166,7 @@ function drawPlayer(){
   ctx.shadowColor='#00fff5';ctx.shadowBlur=20;
   // Body
   const g=ctx.createLinearGradient(0,0,player.w,player.h);
-  g.addColorStop(0,'#00fff5');g.addColorStop(0.5,'#0088aa');g.addColorStop(1,'#004455');
+  g.addColorStop(0,PLAYER_COLOR);g.addColorStop(0.5,PLAYER_COLOR+'88');g.addColorStop(1,PLAYER_COLOR+'44');
   ctx.fillStyle=g;
   ctx.beginPath();
   ctx.moveTo(player.w/2,0);ctx.lineTo(player.w,player.h);ctx.lineTo(0,player.h);ctx.closePath();ctx.fill();

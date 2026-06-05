@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --cyan:#00fff5; --pink:#ff0090; --yellow:#ffe600; --green:#39ff14;
+  --cyan:#00fff5; --pink:#ff0090; --yellow:#ffe600; --green:#39ff14; --accent:#00fff5;
   --dark:#060610; --dark2:#0d0d22; --dark3:#13132e; --card:#0e0e24; --border:#1e1e4a;
   --grid-color: rgba(0,255,245,0.03);
   --bg-color: #060610;
@@ -253,12 +253,12 @@ const FIXED = [
 // Shop items
 const SHOP = {
   colors: [
-    {id:'col_cyan',   name:'Cyan Neón',    icon:'🩵', price:5,  type:'color', val:'rgba(0,255,245,0.15)'},
-    {id:'col_pink',   name:'Rosa Neón',    icon:'🩷', price:5,  type:'color', val:'rgba(255,0,144,0.15)'},
-    {id:'col_green',  name:'Verde Neón',   icon:'💚', price:5,  type:'color', val:'rgba(57,255,20,0.15)'},
-    {id:'col_yellow', name:'Amarillo',     icon:'💛', price:5,  type:'color', val:'rgba(255,230,0,0.15)'},
-    {id:'col_purple', name:'Morado',       icon:'💜', price:8,  type:'color', val:'rgba(150,0,255,0.15)'},
-    {id:'col_red',    name:'Rojo Fuego',   icon:'❤️', price:8,  type:'color', val:'rgba(255,50,0,0.15)'},
+    {id:'col_cyan',   name:'Cyan Neón',    icon:'🩵', price:5,  type:'color', hex:'#00fff5', val:'rgba(0,255,245,0.12)'},
+    {id:'col_pink',   name:'Rosa Neón',    icon:'🩷', price:5,  type:'color', hex:'#ff0090', val:'rgba(255,0,144,0.12)'},
+    {id:'col_green',  name:'Verde Neón',   icon:'💚', price:5,  type:'color', hex:'#39ff14', val:'rgba(57,255,20,0.12)'},
+    {id:'col_yellow', name:'Amarillo',     icon:'💛', price:5,  type:'color', hex:'#ffe600', val:'rgba(255,230,0,0.12)'},
+    {id:'col_purple', name:'Morado',       icon:'💜', price:8,  type:'color', hex:'#9900ff', val:'rgba(150,0,255,0.12)'},
+    {id:'col_red',    name:'Rojo Fuego',   icon:'❤️', price:8,  type:'color', hex:'#ff3200', val:'rgba(255,50,0,0.12)'},
   ],
   bg: [
     {id:'bg_galaxy', name:'Galaxia',    icon:'🌌', price:10, type:'bg', val:'data:image/jpeg;base64,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'},
@@ -373,7 +373,11 @@ function doLogout() {
   document.getElementById('pointsBadge').style.display='none';
   document.getElementById('addBtn').style.display='none';
   admin=false;
-  document.body.style.backgroundImage='none'; document.body.style.backgroundColor='#060610'; document.documentElement.style.setProperty('--grid-color','rgba(0,255,245,0.05)');
+  document.body.style.backgroundImage='none'; document.body.style.backgroundColor='#060610';
+  document.documentElement.style.setProperty('--grid-color','rgba(0,255,245,0.05)');
+  document.documentElement.style.setProperty('--cyan','#00fff5');
+  const logo=document.querySelector('.logo'); if(logo)logo.style.color='#00fff5';
+  try{localStorage.setItem('ugColor','#00fff5');}catch(e){}
   render();
 }
 function updatePoints() {
@@ -474,20 +478,27 @@ function applyEquipped() {
   const ud=currentUD;
   const col=ud.equipped&&ud.equipped.color?SHOP.colors.find(i=>i.id===ud.equipped.color):null;
   const bg=ud.equipped&&ud.equipped.bg?SHOP.bg.find(i=>i.id===ud.equipped.bg):null;
-  const colVal = col ? col.val : 'rgba(0,255,245,0.05)';
+
+  // Apply background image
   if(bg){
-    // Image background
-    document.body.style.backgroundImage = 'url('+bg.val+')';
-    document.body.style.backgroundSize = 'cover';
-    document.body.style.backgroundPosition = 'center';
-    document.body.style.backgroundRepeat = 'no-repeat';
-    document.body.style.backgroundColor = '#060610';
+    document.body.style.backgroundImage='url('+bg.val+')';
+    document.body.style.backgroundSize='cover';
+    document.body.style.backgroundPosition='center';
+    document.body.style.backgroundRepeat='no-repeat';
   } else {
-    document.body.style.backgroundImage = 'none';
-    document.body.style.backgroundColor = '#060610';
-    document.body.style.background = '#060610';
+    document.body.style.backgroundImage='none';
+    document.body.style.backgroundColor='#060610';
   }
-  document.documentElement.style.setProperty('--grid-color', colVal);
+
+  // Apply accent color
+  const hex = col ? col.hex : '#00fff5';
+  const val = col ? col.val : 'rgba(0,255,245,0.05)';
+  document.documentElement.style.setProperty('--grid-color', val);
+  document.documentElement.style.setProperty('--cyan', hex);
+  const logo=document.querySelector('.logo');
+  if(logo) logo.style.color=hex;
+  // Save color to localStorage so games can read it
+  try { localStorage.setItem('ugColor', hex); } catch(e) {}
 }
 
 // ════════════════════════════════════════

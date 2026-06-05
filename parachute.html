@@ -25,6 +25,9 @@ button { margin-top:6px; background:linear-gradient(135deg,#00fff5,#00a8ff); col
 <div id="msg">Presiona INICIAR</div>
 <button onclick="startGame()">INICIAR</button>
 <script>
+
+// Read player color from Ultra Games
+const PLAYER_COLOR = (()=>{ try{return localStorage.getItem('ugColor')||'#00fff5';}catch(e){return '#00fff5';} })();
 const C=document.getElementById('c'),ctx=C.getContext('2d');
 const W=400,H=380;
 let boat,troops,bullets,score,lives,wave,running,animId,frame,particles,keys={},spawnTimer,clouds;
@@ -164,7 +167,7 @@ function draw(){
 
   // Boat
   const boatG=ctx.createLinearGradient(boat.x,boat.y,boat.x,boat.y+boat.h);
-  boatG.addColorStop(0,'#224488');boatG.addColorStop(1,'#112244');
+  boatG.addColorStop(0,PLAYER_COLOR);boatG.addColorStop(1,PLAYER_COLOR+'88');
   ctx.fillStyle=boatG;ctx.shadowColor='#00fff5';ctx.shadowBlur=15;
   ctx.beginPath();ctx.roundRect(boat.x,boat.y,boat.w,boat.h,8);ctx.fill();
   // Cannon

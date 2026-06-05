@@ -42,6 +42,9 @@
   <div class="chip" onclick="buscarTema('sistema solar planetas')">sistema solar</div>
 </div>
 <script>
+
+// Read player color from Ultra Games
+const PLAYER_COLOR = (()=>{ try{return localStorage.getItem('ugColor')||'#00fff5';}catch(e){return '#00fff5';} })();
 function buscar() {
   const q = document.getElementById('query').value.trim();
   if (!q) return;

@@ -25,6 +25,9 @@ button { margin-top:8px; background:linear-gradient(135deg,#00fff5,#00a8ff); col
 <div id="msg">Clic en INICIAR — mueve el mouse</div>
 <button onclick="startGame()">INICIAR</button>
 <script>
+
+// Read player color from Ultra Games
+const PLAYER_COLOR = (()=>{ try{return localStorage.getItem('ugColor')||'#00fff5';}catch(e){return '#00fff5';} })();
 const C=document.getElementById('c'),ctx=C.getContext('2d');
 const W=480,H=380;
 let px,bx,by,bvx,bvy,bricks,score,lives,launched,running,animId,frame,particles,level;
@@ -131,7 +134,7 @@ function draw(){
 
   // Paddle
   const padG=ctx.createLinearGradient(px,H-30,px+90,H-18);
-  padG.addColorStop(0,'#00fff5');padG.addColorStop(0.5,'#aaffff');padG.addColorStop(1,'#00fff5');
+  padG.addColorStop(0,PLAYER_COLOR);padG.addColorStop(0.5,'#ffffff88');padG.addColorStop(1,PLAYER_COLOR);
   ctx.fillStyle=padG;ctx.shadowColor='#00fff5';ctx.shadowBlur=15;
   ctx.beginPath();ctx.roundRect(px,H-30,90,12,6);ctx.fill();
   ctx.shadowBlur=0;

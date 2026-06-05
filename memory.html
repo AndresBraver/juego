@@ -21,7 +21,7 @@ h1 { color:#00fff5; font-size:22px; margin-bottom:6px; text-shadow:0 0 15px #00f
 .card::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(0,255,245,.05),transparent); }
 .card:hover:not(.flipped):not(.matched) { transform:scale(1.04); border-color:#00fff5; box-shadow:0 0 15px rgba(0,255,245,.2); }
 .card.flipped { background:linear-gradient(135deg,#1a1a4e,#2a2a6e); border-color:#00fff5; box-shadow:0 0 20px rgba(0,255,245,.3); transform:rotateY(0); }
-.card.matched { background:linear-gradient(135deg,#0a2e1a,#1a4e2a); border-color:#39ff14; box-shadow:0 0 20px rgba(57,255,20,.4); animation:matchPop .3s ease; }
+.card.matched { background:linear-gradient(135deg,#0a2e1a,#1a4e2a); border-color:var(--match-color,#39ff14); box-shadow:0 0 20px rgba(57,255,20,.4); animation:matchPop .3s ease; }
 .card.wrong { border-color:#ff0055; background:linear-gradient(135deg,#2e0a1a,#4e1a2a); animation:shake .3s; }
 @keyframes matchPop { 0%{transform:scale(1)} 50%{transform:scale(1.15)} 100%{transform:scale(1)} }
 @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
@@ -41,6 +41,9 @@ button { margin-top:10px; background:linear-gradient(135deg,#00fff5,#00a8ff); co
 <div id="msg">Presiona INICIAR para jugar</div>
 <button onclick="init()">INICIAR</button>
 <script>
+
+// Read player color from Ultra Games
+const PLAYER_COLOR = (()=>{ try{return localStorage.getItem('ugColor')||'#00fff5';}catch(e){return '#00fff5';} })();
 const EMOJIS=['🎮','🚀','🐉','💎','🏆','⚡','🔥','🌊'];
 let cards,flipped,matched,moves,lock,timerInt,seconds;
 
@@ -80,7 +83,7 @@ function flip(card,idx){
     const [a,b]=flipped.map(i=>cards[i]);
     if(a.dataset.emoji===b.dataset.emoji){
       setTimeout(()=>{
-        a.classList.add('matched');b.classList.add('matched');
+        a.classList.add('matched');b.classList.add('matched');document.documentElement.style.setProperty('--match-color',PLAYER_COLOR);
         matched++;document.getElementById('pairs').textContent=matched;
         flipped=[];lock=false;
         if(matched===8){

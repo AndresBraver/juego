@@ -15,6 +15,9 @@ canvas { display:block; border-radius:8px; box-shadow:0 0 40px rgba(255,150,0,0.
 <div id="ui"></div>
 <canvas id="c"></canvas>
 <script>
+
+// Read player color from Ultra Games
+const PLAYER_COLOR = (()=>{ try{return localStorage.getItem('ugColor')||'#00fff5';}catch(e){return '#00fff5';} })();
 const C = document.getElementById('c');
 const ctx = C.getContext('2d');
 const W = 360, H = 560;
@@ -193,7 +196,7 @@ function drawBird() {
   ctx.shadowColor='rgba(255,200,0,0.6)'; ctx.shadowBlur=15;
   // Body
   const bodyG = ctx.createRadialGradient(-2,-3,2,0,0,16);
-  bodyG.addColorStop(0,'#ffe066'); bodyG.addColorStop(0.6,'#ffaa00'); bodyG.addColorStop(1,'#ff6600');
+  bodyG.addColorStop(0,PLAYER_COLOR); bodyG.addColorStop(0.6,PLAYER_COLOR+'cc'); bodyG.addColorStop(1,PLAYER_COLOR+'88');
   ctx.fillStyle=bodyG;
   ctx.beginPath(); ctx.ellipse(0,0,16,14,0,0,Math.PI*2); ctx.fill();
   // Wing

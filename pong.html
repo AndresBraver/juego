@@ -19,6 +19,9 @@ button { margin-top:8px; background:linear-gradient(135deg,#ffe600,#ff9900); col
 <button onclick="startGame()">INICIAR</button>
 <div id="hint">J1: W/S | J2: ↑/↓ | Primero en 7 gana</div>
 <script>
+
+// Read player color from Ultra Games
+const PLAYER_COLOR = (()=>{ try{return localStorage.getItem('ugColor')||'#00fff5';}catch(e){return '#00fff5';} })();
 const C=document.getElementById('c'),ctx=C.getContext('2d');
 const W=480,H=320,PAD_H=70,PAD_W=12,BALL_R=8;
 let p1,p2,ball,score1,score2,running,animId,keys={},particles,frame,trail;
@@ -130,7 +133,7 @@ function draw(){
   ctx.globalAlpha=1;ctx.shadowBlur=0;
 
   // Paddles
-  drawPaddle(22,p1.y,'#00fff5');
+  drawPaddle(22,p1.y,PLAYER_COLOR);
   drawPaddle(W-22-PAD_W,p2.y,'#ff0055');
 
   // Ball

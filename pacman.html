@@ -23,6 +23,9 @@
 <button onclick="startGame()">INICIAR</button>
 <div id="hint">Flechas o WASD para mover</div>
 <script>
+
+// Read player color from Ultra Games
+const PLAYER_COLOR = (()=>{ try{return localStorage.getItem('ugColor')||'#00fff5';}catch(e){return '#00fff5';} })();
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const CELL = 28, COLS = 15, ROWS = 15;

@@ -44,6 +44,9 @@ canvas { display:block; border-radius:8px; box-shadow:0 0 30px rgba(255,150,0,0.
 <div id="hint">A/D = mover | Z = atacar | X = bloquear | ↑ = saltar</div>
 
 <script>
+
+// Read player color from Ultra Games
+const PLAYER_COLOR = (()=>{ try{return localStorage.getItem('ugColor')||'#00fff5';}catch(e){return '#00fff5';} })();
 const C=document.getElementById('c'),ctx=C.getContext('2d');
 const W=480,H=280,FLOOR=220;
 
@@ -71,7 +74,7 @@ document.addEventListener('keyup',e=>{
 let p1,p2,particles,running,animId,frame;
 
 function startGame(){
-  p1={x:80,y:FLOOR,vy:0,hp:100,maxHp:100,facing:1,atkCd:0,atkAnim:0,jumping:false,stunned:0,color:'#00fff5'};
+  p1={x:80,y:FLOOR,vy:0,hp:100,maxHp:100,facing:1,atkCd:0,atkAnim:0,jumping:false,stunned:0,color:PLAYER_COLOR};
   p2={x:W-100,y:FLOOR,vy:0,hp:100,maxHp:100,facing:-1,atkCd:0,atkAnim:0,jumping:false,stunned:0,color:'#ff0055',aiTimer:0,aiAction:''};
   particles=[];running=true;frame=0;
   document.getElementById('p1hp').style.width='100%';

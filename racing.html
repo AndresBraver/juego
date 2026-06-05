@@ -27,6 +27,9 @@ canvas { display:block; border-radius:8px; box-shadow:0 0 40px rgba(255,0,85,0.3
 <button onclick="startGame()" style="margin-top:8px;background:#ff0055;color:#fff;border:none;padding:8px 22px;font-size:12px;font-family:'Courier New',monospace;font-weight:bold;border-radius:6px;cursor:pointer;">INICIAR</button>
 <div id="hint">← → o A D para mover</div>
 <script>
+
+// Read player color from Ultra Games
+const PLAYER_COLOR = (()=>{ try{return localStorage.getItem('ugColor')||'#00fff5';}catch(e){return '#00fff5';} })();
 const C = document.getElementById('c');
 const ctx = C.getContext('2d');
 const W=360, H=480;
@@ -255,7 +258,7 @@ function draw(){
   // Draw cars
   cars.forEach(c=>drawCar(c.x,c.y,c.color,c.trail,false));
   drawParticles();
-  if(player) drawCar(player.x,player.y,'#00fff5',player.trail,true);
+  if(player) drawCar(player.x,player.y,PLAYER_COLOR,player.trail,true);
 
   // HUD overlay
   if(!running&&cars.length>=0){

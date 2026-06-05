@@ -32,6 +32,9 @@ button { margin-top:8px; background:linear-gradient(135deg,#ff9900,#ff6600); col
 <button onclick="startGame()">INICIAR</button>
 <div id="hint">Arrastra para apuntar | Clic para potencia</div>
 <script>
+
+// Read player color from Ultra Games
+const PLAYER_COLOR = (()=>{ try{return localStorage.getItem('ugColor')||'#00fff5';}catch(e){return '#00fff5';} })();
 const C=document.getElementById('c'),ctx=C.getContext('2d');
 const W=360,H=440;
 let ball,pins,score,frame,roll,state,power,powerDir,animId,particles,ballX,aimX;
@@ -191,7 +194,7 @@ function draw(){
 
     // Ball
     const bg2=ctx.createRadialGradient(ball.x-6,ball.y-6,2,ball.x,ball.y,ball.r);
-    bg2.addColorStop(0,'#ffffff');bg2.addColorStop(0.4,'#cc88ff');bg2.addColorStop(1,'#6600aa');
+    bg2.addColorStop(0,'#ffffff');bg2.addColorStop(0.4,PLAYER_COLOR+'cc');bg2.addColorStop(1,PLAYER_COLOR);
     ctx.fillStyle=bg2;ctx.shadowColor='#cc00ff';ctx.shadowBlur=20;
     ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);ctx.fill();
     // Holes
