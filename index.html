@@ -13,7 +13,7 @@
   --bg-color: #060610;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
-body { background:var(--bg-color); color:#fff; font-family:'Rajdhani',sans-serif; min-height:100vh; overflow-x:hidden; transition:background .5s; }
+body { background:#060610; color:#fff; font-family:'Rajdhani',sans-serif; min-height:100vh; overflow-x:hidden; transition:background .5s; }
 body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(var(--grid-color) 1px,transparent 1px),linear-gradient(90deg,var(--grid-color) 1px,transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; transition:background .3s; }
 
 /* ── HEADER ── */
@@ -373,10 +373,7 @@ function doLogout() {
   document.getElementById('pointsBadge').style.display='none';
   document.getElementById('addBtn').style.display='none';
   admin=false;
-  document.documentElement.style.setProperty('--grid-color','rgba(0,255,245,0.05)');
-  document.documentElement.style.setProperty('--bg-color','#060610');
-  document.body.style.background='#060610';
-  document.body.style.backgroundColor='#060610';
+  document.body.setAttribute('style','background:#060610 !important;background-color:#060610 !important;--grid-color:rgba(0,255,245,0.05);--bg-color:#060610');
   render();
 }
 function updatePoints() {
@@ -479,14 +476,9 @@ function applyEquipped() {
   const bg=ud.equipped&&ud.equipped.bg?SHOP.bg.find(i=>i.id===ud.equipped.bg):null;
   const bgVal = bg ? bg.val : '#060610';
   const colVal = col ? col.val : 'rgba(0,255,245,0.05)';
-  // Apply background directly
-  document.body.style.backgroundColor = bgVal;
-  document.body.style.background = bgVal;
-  // Apply grid color via CSS variable
-  document.documentElement.style.setProperty('--grid-color', colVal);
-  document.documentElement.style.setProperty('--bg-color', bgVal);
-  document.body.style.setProperty('--grid-color', colVal);
-  document.body.style.setProperty('--bg-color', bgVal);
+  document.body.setAttribute('style',
+    'background:'+bgVal+' !important;background-color:'+bgVal+' !important;--grid-color:'+colVal+';--bg-color:'+bgVal
+  );
 }
 
 // ════════════════════════════════════════
