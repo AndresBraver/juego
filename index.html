@@ -130,6 +130,7 @@ header { position:relative; z-index:10; padding:14px 20px; display:flex; align-i
     <div class="points-badge" id="pointsBadge">⭐ 0</div>
     <button class="hbtn" id="shopBtn" onclick="openShop()">🛍️ TIENDA</button>
     <button class="hbtn" id="addBtn" onclick="openAdd()">+ AGREGAR</button>
+    <button class="hbtn" id="lbBtn" onclick="openLeaderboard()" style="background:rgba(255,230,0,.1);border:1px solid var(--yellow);color:var(--yellow);display:none">🏆 TOP</button>
     <button class="hbtn" id="loginBtn" onclick="openLogin()">👤 LOGIN</button>
   </div>
 </header>
@@ -160,6 +161,17 @@ header { position:relative; z-index:10; padding:14px 20px; display:flex; align-i
   </div>
   <div class="player-frame">
     <iframe id="gameFrame" allow="fullscreen;autoplay" allowfullscreen></iframe>
+  </div>
+</div>
+
+<!-- Leaderboard Modal -->
+<div class="overlay" id="lbModal">
+  <div class="modal-box" style="max-width:420px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div class="modal-title" style="margin:0">🏆 TOP JUGADORES</div>
+      <button class="btn-cancel" style="flex:0;padding:6px 12px" onclick="closeLB()">✕</button>
+    </div>
+    <div id="lbList" style="max-height:50vh;overflow-y:auto"></div>
   </div>
 </div>
 
@@ -354,14 +366,23 @@ async function doLogin() {
         body:JSON.stringify({username:user,password:btoa(pass),points:0,owned:[],equipped:{color:'',bg:''},hints:0,extra_lives:0,extra_games:[]})
       });
       if(!res){err.textContent='Error al crear cuenta';btn.textContent='REGISTRAR';return;}
-      const ud=Array.isArray(res)?res[0]:res; if(!ud.extra_games)ud.extra_games=[]; currentUser=user; currentUD=ud; closeLogin(); onLogin();
+      const ud=Array.isArray(res)?res[0]:res; if(!ud.extra_games)ud.extra_games=[];if(!ud.equipped)ud.equipped={};if(!ud.equipped.title)ud.equipped.title='';if(!ud.equipped.avatar)ud.equipped.avatar='';if(!ud.equipped.effect)ud.equipped.effect=''; currentUser=user; currentUD=ud; closeLogin(); onLogin();
     }
   } catch(e) { err.textContent='Error de conexión'; btn.textContent=isLoginMode?'ENTRAR':'REGISTRAR'; }
 }
+function updateUserDisplay(){
+  if(!currentUser||!currentUD)return;
+  const av=currentUD.equipped&&currentUD.equipped.avatar?SHOP.avatars.find(i=>i.id===currentUD.equipped.avatar):null;
+  const ti=currentUD.equipped&&currentUD.equipped.title?SHOP.titles.find(i=>i.id===currentUD.equipped.title):null;
+  const icon=av?av.val:'👤';
+  const title=ti?' '+ti.val:'';
+  document.getElementById('loginBtn').textContent=icon+' '+currentUser+title;
+}
 function onLogin() {
-  document.getElementById('loginBtn').textContent='👤 '+currentUser;
+  updateUserDisplay();
   document.getElementById('loginBtn').onclick=doLogout;
   document.getElementById('shopBtn').style.display='inline-block';
+  document.getElementById('lbBtn').style.display='inline-block';
   document.getElementById('pointsBadge').style.display='inline-block';
   updatePoints(); applyEquipped(); render();
 }
@@ -370,6 +391,7 @@ function doLogout() {
   document.getElementById('loginBtn').textContent='👤 LOGIN';
   document.getElementById('loginBtn').onclick=openLogin;
   document.getElementById('shopBtn').style.display='none';
+  document.getElementById('lbBtn').style.display='none';
   document.getElementById('pointsBadge').style.display='none';
   document.getElementById('addBtn').style.display='none';
   admin=false;
@@ -391,7 +413,16 @@ function updatePoints() {
 // ════════════════════════════════════════
 // WIN / POINTS
 // ════════════════════════════════════════
-function awardPoints(n=3) {
+function triggerWinEffect(){
+  if(!currentUD||!currentUD.equipped||!currentUD.equipped.effect)return;
+  const fx=currentUD.equipped.effect;
+  const t=document.getElementById('winToast');
+  if(fx==='stars'){for(let i=0;i<8;i++){const s=document.createElement('div');s.textContent='⭐';s.style.cssText='position:fixed;font-size:20px;pointer-events:none;z-index:9999;transition:all 1s;top:'+Math.random()*80+'vh;left:'+Math.random()*90+'vw;';document.body.appendChild(s);setTimeout(()=>s.remove(),1000);}}
+  if(fx==='fire'){for(let i=0;i<6;i++){const s=document.createElement('div');s.textContent='🔥';s.style.cssText='position:fixed;font-size:24px;pointer-events:none;z-index:9999;top:'+Math.random()*80+'vh;left:'+Math.random()*90+'vw;';document.body.appendChild(s);setTimeout(()=>s.remove(),1200);}}
+  if(fx==='rainbow'){document.body.style.transition='filter .3s';document.body.style.filter='hue-rotate(90deg)';setTimeout(()=>{document.body.style.filter='';},800);}
+  if(fx==='explosion'){for(let i=0;i<10;i++){const s=document.createElement('div');s.textContent='💥';s.style.cssText='position:fixed;font-size:'+Math.floor(16+Math.random()*24)+'px;pointer-events:none;z-index:9999;top:'+Math.random()*80+'vh;left:'+Math.random()*90+'vw;';document.body.appendChild(s);setTimeout(()=>s.remove(),800);}}
+}
+function awardPoints(n=2) {
   if(!currentUser||!currentUD){
     // Show toast even without login
     const t=document.getElementById('winToast');
@@ -403,13 +434,14 @@ function awardPoints(n=3) {
   currentUD.points+=n;
   updatePoints();
   saveUD();
+  triggerWinEffect();
   const t=document.getElementById('winToast');
-  t.textContent='🏆 ¡Ganaste! +'+n+' ⭐';
+  t.textContent='🏆 ¡Ganaste! +2 ⭐';
   t.style.display='block';
   setTimeout(()=>t.style.display='none',3000);
 }
 // Expose globally for games to call
-window.ugWin=()=>awardPoints(3);
+window.ugWin=()=>awardPoints(2);
 
 // ════════════════════════════════════════
 // SHOP
@@ -430,7 +462,7 @@ function renderShop() {
   const items=SHOP[shopCurrentTab]||[];
   document.getElementById('shopGrid').innerHTML=items.map(item=>{
     const owned=ud.owned.includes(item.id);
-    const equipped=ud.equipped&&(ud.equipped.color===item.id||ud.equipped.bg===item.id);
+    const equipped=ud.equipped&&(ud.equipped.color===item.id||ud.equipped.bg===item.id||ud.equipped.title===item.id||ud.equipped.avatar===item.id||ud.equipped.effect===item.id);
     return `<div class="shop-item ${owned?'owned':''} ${equipped?'equipped':''}" onclick="buyItem('${item.id}')">
       <div class="si-icon">${item.icon}</div>
       <div class="si-name">${item.name}</div>
@@ -449,6 +481,24 @@ function buyItem(id) {
   let item=null;
   Object.values(SHOP).forEach(arr=>arr.forEach(i=>{if(i.id===id)item=i;}));
   if(!item)return;
+  if(item.type==='title'){
+    if(!ud.owned.includes(id)){if(ud.points<item.price){alert('No tienes suficientes puntos ⭐');return;}ud.points-=item.price;ud.owned.push(id);}
+    ud.equipped.title=ud.equipped.title===id?'':id;
+    saveUD();updatePoints();applyEquipped();renderShop();
+    document.getElementById('winToast').textContent='👑 Título equipado: '+item.val;
+    document.getElementById('winToast').style.display='block';setTimeout(()=>document.getElementById('winToast').style.display='none',2000);
+    return;
+  }
+  if(item.type==='avatar'){
+    if(!ud.owned.includes(id)){if(ud.points<item.price){alert('No tienes suficientes puntos ⭐');return;}ud.points-=item.price;ud.owned.push(id);}
+    ud.equipped.avatar=ud.equipped.avatar===id?'':id;
+    saveUD();updatePoints();applyEquipped();renderShop();return;
+  }
+  if(item.type==='effect'){
+    if(!ud.owned.includes(id)){if(ud.points<item.price){alert('No tienes suficientes puntos ⭐');return;}ud.points-=item.price;ud.owned.push(id);}
+    ud.equipped.effect=ud.equipped.effect===id?'':id;
+    saveUD();updatePoints();renderShop();return;
+  }
   if(item.type==='hint'||item.type==='life'){
     // Consumable - can buy multiple
     if(ud.points<item.price){alert('No tienes suficientes puntos ⭐');return;}
@@ -497,9 +547,36 @@ function applyEquipped() {
   document.documentElement.style.setProperty('--cyan', hex);
   const logo=document.querySelector('.logo');
   if(logo) logo.style.color=hex;
-  // Save color to localStorage so games can read it
   try { localStorage.setItem('ugColor', hex); } catch(e) {}
+  updateUserDisplay();
 }
+
+// ════════════════════════════════════════
+// LEADERBOARD
+// ════════════════════════════════════════
+async function openLeaderboard(){
+  document.getElementById('lbModal').classList.add('open');
+  document.getElementById('lbList').innerHTML='<div style="color:#555;text-align:center;padding:20px">Cargando...</div>';
+  const data=await sbFetch('ug_users?select=username,points,equipped&order=points.desc&limit=10');
+  if(!data||!data.length){document.getElementById('lbList').innerHTML='<div style="color:#555;text-align:center">Sin datos</div>';return;}
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('lbList').innerHTML=data.map((u,i)=>{
+    const av=u.equipped&&u.equipped.avatar?SHOP.avatars.find(x=>x.id===u.equipped.avatar):null;
+    const ti=u.equipped&&u.equipped.title?SHOP.titles.find(x=>x.id===u.equipped.title):null;
+    const icon=av?av.val:'👤';
+    const title=ti?' <span style="font-size:10px;color:#aaa">'+ti.val+'</span>':'';
+    const medal=medals[i]||'#'+(i+1);
+    const isMe=u.username===currentUser;
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;margin-bottom:6px;background:'+(isMe?'rgba(0,255,245,.1)':'rgba(255,255,255,.03)')+';border:1px solid '+(isMe?'#00fff5':'#1e1e4e')+'">'
+      +'<span style="font-size:18px;min-width:30px;text-align:center">'+medal+'</span>'
+      +'<span style="font-size:22px">'+icon+'</span>'
+      +'<div style="flex:1"><div style="font-family:Orbitron,sans-serif;font-size:12px;color:#fff">'+u.username+title+'</div></div>'
+      +'<div style="font-family:Orbitron,sans-serif;font-size:14px;color:#ffe600;font-weight:bold">⭐ '+u.points+'</div>'
+      +'</div>';
+  }).join('');
+}
+function closeLB(){document.getElementById('lbModal').classList.remove('open');}
+document.getElementById('lbModal').addEventListener('click',function(e){if(e.target===this)closeLB();});
 
 // ════════════════════════════════════════
 // RENDER
@@ -563,7 +640,7 @@ function saveGame(){
 // ════════════════════════════════════════
 // Listen for win messages from games via postMessage
 window.addEventListener('message', e => {
-  if(e.data === 'ugWin') awardPoints(3);
+  if(e.data === 'ugWin') awardPoints(2);
 });
 
 // Also poll localStorage as fallback (same domain)
@@ -573,7 +650,7 @@ setInterval(() => {
     const val = localStorage.getItem('ugWin');
     if(val && parseInt(val) > lastWinCheck) {
       lastWinCheck = parseInt(val);
-      awardPoints(3);
+      awardPoints(2);
       localStorage.removeItem('ugWin');
     }
   } catch(e) {}
