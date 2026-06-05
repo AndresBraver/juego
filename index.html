@@ -253,20 +253,20 @@ const FIXED = [
 // Shop items
 const SHOP = {
   colors: [
-    {id:'col_cyan',   name:'Cyan Neón',    icon:'🩵', price:5,  type:'color', val:'rgba(0,255,245,0.05)'},
-    {id:'col_pink',   name:'Rosa Neón',    icon:'🩷', price:5,  type:'color', val:'rgba(255,0,144,0.05)'},
-    {id:'col_green',  name:'Verde Neón',   icon:'💚', price:5,  type:'color', val:'rgba(57,255,20,0.05)'},
-    {id:'col_yellow', name:'Amarillo',     icon:'💛', price:5,  type:'color', val:'rgba(255,230,0,0.05)'},
-    {id:'col_purple', name:'Morado',       icon:'💜', price:8,  type:'color', val:'rgba(150,0,255,0.05)'},
-    {id:'col_red',    name:'Rojo Fuego',   icon:'❤️', price:8,  type:'color', val:'rgba(255,50,0,0.05)'},
+    {id:'col_cyan',   name:'Cyan Neón',    icon:'🩵', price:5,  type:'color', val:'rgba(0,255,245,0.15)'},
+    {id:'col_pink',   name:'Rosa Neón',    icon:'🩷', price:5,  type:'color', val:'rgba(255,0,144,0.15)'},
+    {id:'col_green',  name:'Verde Neón',   icon:'💚', price:5,  type:'color', val:'rgba(57,255,20,0.15)'},
+    {id:'col_yellow', name:'Amarillo',     icon:'💛', price:5,  type:'color', val:'rgba(255,230,0,0.15)'},
+    {id:'col_purple', name:'Morado',       icon:'💜', price:8,  type:'color', val:'rgba(150,0,255,0.15)'},
+    {id:'col_red',    name:'Rojo Fuego',   icon:'❤️', price:8,  type:'color', val:'rgba(255,50,0,0.15)'},
   ],
   bg: [
-    {id:'bg_space',   name:'Espacio',      icon:'🌌', price:10, type:'bg', val:'#000008'},
-    {id:'bg_ocean',   name:'Océano',       icon:'🌊', price:10, type:'bg', val:'#001428'},
-    {id:'bg_forest',  name:'Bosque',       icon:'🌲', price:10, type:'bg', val:'#001408'},
-    {id:'bg_sunset',  name:'Atardecer',    icon:'🌅', price:12, type:'bg', val:'#1a0808'},
-    {id:'bg_galaxy',  name:'Galaxia',      icon:'✨', price:15, type:'bg', val:'#08001a'},
-    {id:'bg_lava',    name:'Lava',         icon:'🔥', price:15, type:'bg', val:'#1a0400'},
+    {id:'bg_space',   name:'Espacio',      icon:'🌌', price:10, type:'bg', val:'#000020'},
+    {id:'bg_ocean',   name:'Océano',       icon:'🌊', price:10, type:'bg', val:'#002855'},
+    {id:'bg_forest',  name:'Bosque',       icon:'🌲', price:10, type:'bg', val:'#002800'},
+    {id:'bg_sunset',  name:'Atardecer',    icon:'🌅', price:12, type:'bg', val:'#3a0a00'},
+    {id:'bg_galaxy',  name:'Galaxia',      icon:'✨', price:15, type:'bg', val:'#150030'},
+    {id:'bg_lava',    name:'Lava',         icon:'🔥', price:15, type:'bg', val:'#3a0800'},
   ],
   extras: [
     {id:'hint_pack',  name:'Pack Pistas',  icon:'💡', price:8,  type:'hint',  val:3,  desc:'3 pistas (revelar letra)'},
@@ -373,9 +373,10 @@ function doLogout() {
   document.getElementById('pointsBadge').style.display='none';
   document.getElementById('addBtn').style.display='none';
   admin=false;
-  document.body.style.setProperty('--grid-color','rgba(0,255,245,0.03)');
-  document.body.style.setProperty('--bg-color','#060610');
+  document.documentElement.style.setProperty('--grid-color','rgba(0,255,245,0.05)');
+  document.documentElement.style.setProperty('--bg-color','#060610');
   document.body.style.background='#060610';
+  document.body.style.backgroundColor='#060610';
   render();
 }
 function updatePoints() {
@@ -474,19 +475,18 @@ function buyItem(id) {
 function applyEquipped() {
   if(!currentUser||!currentUD)return;
   const ud=currentUD;
-  // Color grid
   const col=ud.equipped&&ud.equipped.color?SHOP.colors.find(i=>i.id===ud.equipped.color):null;
-  const colVal = col ? col.val : 'rgba(0,255,245,0.03)';
-  document.body.style.setProperty('--grid-color', colVal);
-  // Background - apply directly to body
   const bg=ud.equipped&&ud.equipped.bg?SHOP.bg.find(i=>i.id===ud.equipped.bg):null;
   const bgVal = bg ? bg.val : '#060610';
-  document.body.style.setProperty('--bg-color', bgVal);
+  const colVal = col ? col.val : 'rgba(0,255,245,0.05)';
+  // Apply background directly
+  document.body.style.backgroundColor = bgVal;
   document.body.style.background = bgVal;
-  // Force grid pseudo-element update by toggling class
-  document.body.classList.remove('theme-applied');
-  void document.body.offsetWidth;
-  document.body.classList.add('theme-applied');
+  // Apply grid color via CSS variable
+  document.documentElement.style.setProperty('--grid-color', colVal);
+  document.documentElement.style.setProperty('--bg-color', bgVal);
+  document.body.style.setProperty('--grid-color', colVal);
+  document.body.style.setProperty('--bg-color', bgVal);
 }
 
 // ════════════════════════════════════════
